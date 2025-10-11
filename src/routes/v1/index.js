@@ -13,7 +13,7 @@ Router.get("/status", (req, res) => {
 });
 
 // route con
-Router.use("/auth", authRoutes);
-Router.use("/user", userRoutes);
+Router.use("/auths", authRoutes);
+Router.use("/users", userRoutes);
 
-export const APIs = Router;
+export const APIs_v1 = Router;

@@ -56,4 +56,3 @@ export const deleteUserService = async (username) => {
     }
     return;
 };
-

@@ -1,5 +1,6 @@
-import { signUpService } from "../services/authServices.js";
+import { forgetPasswordService, signInService, signUpService } from "../services/authServices.js";
 import { StatusCodes } from 'http-status-codes';
+import ApiError from "../utils/ApiError.js";
 
 export const signUp = async (req, res, next) => {
     try {
@@ -13,6 +14,34 @@ export const signUp = async (req, res, next) => {
                 age: user.age,
                 phone: user.phone,
             }
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const signIn = async (req, res, next) => {
+    try {
+        const { username, password } = req.body;
+        const { user, token } = await signInService(username, password);
+
+        res.status(StatusCodes.OK).json({
+            message: "Login successful",
+            token,
+            user: { id: user._id, email: user.email, username: user.username, role: user.role },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const forgetPassword = async (req, res, next) => {
+    try {
+        const userData = req.body;
+        const user = await forgetPasswordService(userData);
+        res.status(StatusCodes.OK).json({
+            message: "Change password successful",
+            user: { id: user._id, email: user.email, username: user.username, role: user.role },
         });
     } catch (error) {
         next(error);
