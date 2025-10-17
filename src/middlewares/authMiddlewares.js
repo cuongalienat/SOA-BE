@@ -1,14 +1,16 @@
 // middlewares/authMiddleware.js
 import jwt from "jsonwebtoken";
 import ApiError from "../utils/ApiError.js";
+import User from "../models/user.js";
 
-export const authMiddleware = (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
         if (!token) throw new ApiError(401, "Chưa đăng nhập");
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+        const user = await User.findById(decoded.id).select('-password');
+        req.user = user;
         next();
     } catch (err) {
         if (err.name === "JsonWebTokenError") {

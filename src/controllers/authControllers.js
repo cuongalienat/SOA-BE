@@ -1,6 +1,5 @@
-import { forgetPasswordService, signInService, signUpService } from "../services/authServices.js";
+import { createAdminService, forgetPasswordService, signInService, signUpService } from "../services/authServices.js";
 import { StatusCodes } from 'http-status-codes';
-import ApiError from "../utils/ApiError.js";
 
 export const signUp = async (req, res, next) => {
     try {
@@ -42,6 +41,27 @@ export const forgetPassword = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             message: "Change password successful",
             user: { id: user._id, email: user.email, username: user.username, role: user.role },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const createAdmin = async (req, res, next) => {
+    try {
+        const adminData = {
+            username: process.env.ADMIN_USERNAME,
+            password: process.env.ADMIN_PASSWORD,
+            email: " ",
+            name: " ",
+            age: " ",
+            phone: " ",
+            role: "admin"
+        }
+        await createAdminService(adminData);
+
+        res.status(StatusCodes.OK).json({
+            message: "Create admin successful"
         });
     } catch (error) {
         next(error);

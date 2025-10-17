@@ -3,6 +3,22 @@ import ApiError from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 
+export const createAdminService = async (adminData) => {
+    const {
+        username, password, email, name, age, phone, role
+    } = adminData;
+    const admin = await User.findOne({ username });
+    if (admin) {
+        throw new ApiError(StatusCodes.CONFLICT, "Admin already existed");
+    }
+
+    const newAdmin = User.create({ username, password, email, name, age, phone, role });
+    if (!newAdmin) {
+        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to create admin");
+    }
+    return;
+}
+
 export const signUpService = async (userData) => {
     const {
         username, password, email, name, age, phone

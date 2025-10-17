@@ -1,4 +1,4 @@
-import { getUserDataService, updateUserPhoneService, updateUserService, deleteUserService } from "../services/userServices.js";
+import { getUserDataService, updateUserPhoneService, updateUserService, deleteUserService, promoteUserService } from "../services/userServices.js";
 import { StatusCodes } from "http-status-codes";
 export const getUserData = async (req, res, next) => {
     try {
@@ -81,3 +81,16 @@ export const deleteUser = async (req, res, next) => {
         next(error);
     }
 };
+
+export const promoteUser = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        await promoteUserService(email);
+        res.status(StatusCodes.OK).json({
+            message: "turn user into shop successfully",
+            email: email
+        });
+    } catch (error) {
+        next(error);
+    }
+}
