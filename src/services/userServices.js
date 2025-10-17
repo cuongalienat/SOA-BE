@@ -57,3 +57,17 @@ export const deleteUserService = async (username) => {
     return;
 };
 
+export const promoteUserService = async (email) => {
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "User not found");
+    }
+    if (user.role === "shop") {
+        throw new ApiError(StatusCodes.CONFLICT, "User is already shop");
+    }
+    user.role = "shop";
+    await user.save();
+    return {
+        email: user.email
+    };
+}

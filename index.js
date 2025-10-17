@@ -1,11 +1,11 @@
 import express from 'express'
 import { env } from './src/config/environment.js'
 import connectDB from './src/config/db.js'
-import { APIs } from './src/routes/index.js'
+import { APIs_v1 } from './src/routes/v1/index.js'
 
 const app = express()
 app.use(express.json())
-app.use('/', APIs)
+app.use('/v1', APIs_v1)
 connectDB()
 
 app.get('/', (req, res) => {
