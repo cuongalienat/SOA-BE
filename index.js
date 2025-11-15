@@ -4,6 +4,7 @@ import { env } from './src/config/environment.js'
 import { corsOptions } from './src/config/cors.js'
 import connectDB from './src/config/db.js'
 import { APIs_v1 } from './src/routes/v1/index.js'
+import { errorHandlingMiddleware } from './src/middlewares/errorHandlingMiddleware.js'
 
 const app = express()
 app.use(express.json())
@@ -14,6 +15,9 @@ connectDB()
 app.get('/', (req, res) => {
     res.status(200).json({ message: 'SOA Backend API' })
 })
+
+app.use(errorHandlingMiddleware);
+
 app.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
     console.log(`Server is running on http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}`)
 })
