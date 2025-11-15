@@ -1,4 +1,4 @@
-import { createAdminService, forgetPasswordService, signInService, signUpService } from "../services/authServices.js";
+import { createAdminService, forgetPasswordService, signInService, signUpService, verifyUserService } from "../services/authServices.js";
 import { StatusCodes } from 'http-status-codes';
 
 export const signUp = async (req, res, next) => {
@@ -62,6 +62,18 @@ export const createAdmin = async (req, res, next) => {
 
         res.status(StatusCodes.OK).json({
             message: "Create admin successful"
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const verifyUser = async (req, res, next) => {
+    try {
+        const { email, otpCode } = req.body;
+        await verifyUserService(email, otpCode);
+        res.status(StatusCodes.OK).json({
+            message: "Account successfully verified.",
         });
     } catch (error) {
         next(error);
