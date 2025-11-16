@@ -29,3 +29,12 @@ export const isAdmin = (req, res, next) => {
     }
     next();
 };
+
+export const isShopOwner = (req, res, next) => {
+    // Giả sử authMiddleware đã giải mã token và gắn user vào req
+    if (req.user && req.user.role === 'shop') {
+        next();
+    } else {
+        res.status(403).json({ message: "Forbidden: Access is allowed for shop owners only." });
+    }
+};
