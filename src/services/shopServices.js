@@ -17,5 +17,34 @@ export const createShopService = async (ownerId, shopData) => {
     return newShop;
 };
 
-// Viết các service còn lại: getShopByOwner, updateShop, updateStatus
-// ...
+export const getShopByOwnerService = async (ownerId) => {
+    const shop = await Shop.findOne({ owner: ownerId });
+    if (!shop) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
+    }
+    return shop;
+};
+
+export const updateShopService = async (ownerId, updateData) => {
+    const shop = await Shop.findOneAndUpdate(
+        { owner: ownerId },
+        updateData,
+        { new: true } // Trả về dữ liệu sau khi update
+    );
+    if (!shop) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
+    }
+    return shop;
+};
+
+export const updateShopStatusService = async (ownerId, isOpen) => {
+    const shop = await Shop.findOneAndUpdate(
+        { owner: ownerId },
+        { isOpen },
+        { new: true }
+    );
+    if (!shop) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
+    }
+    return shop;
+};
