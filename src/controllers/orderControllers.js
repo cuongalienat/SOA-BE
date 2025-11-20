@@ -3,7 +3,7 @@ import ApiError from "../utils/ApiError.js"; // Import class lỗi tùy chỉnh
 import { StatusCodes } from "http-status-codes"; // (Tuỳ chọn) Dùng thư viện này cho code clean hơn, hoặc dùng số 200, 201...
 
 // 1. Tạo đơn hàng mới
-export const createNewOrder = async (req, res, next) => {
+export const createOrder = async (req, res, next) => {
     try {
         // Lấy ID người dùng từ token (đã qua middleware auth)
         const customerId = req.user._id;
@@ -54,7 +54,7 @@ export const getOrderDetails = async (req, res, next) => {
 };
 
 // 3. Lấy danh sách đơn hàng của Khách hàng (Lịch sử mua hàng)
-export const getMyOrders = async (req, res, next) => {
+export const getOrders = async (req, res, next) => {
     try {
         const { page, limit, status } = req.query;
         const userId = req.user._id;

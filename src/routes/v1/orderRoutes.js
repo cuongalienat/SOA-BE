@@ -1,28 +1,28 @@
 import express from "express";
 import {
-    createNewOrder,
+    createOrder,
     getOrderDetails,
-    getMyOrders,
+    getOrders,
     getRestaurantOrders,
     updateStatus,
-    cancelMyOrder
-} from "../controllers/orderController.js";
+    cancelOrder
+} from "../../controllers/orderControllers.js";
 
 // Import middleware xác thực của bạn
-import { authMiddleware, isAdmin, isRestaurant } from "../middlewares/authMiddleware.js";
+import { authMiddleware, isShipper, isRestaurant } from "../../middlewares/authMiddlewares.js";
 
 const router = express.Router();
 
 // --- NHÓM ROUTE CHO KHÁCH HÀNG (USER) ---
 
 // 1. Tạo đơn hàng (Yêu cầu đăng nhập)
-router.post("/", authMiddleware, createNewOrder);
+router.post("/", authMiddleware, createOrder);
 
 // 2. Xem lịch sử mua hàng của bản thân
-router.get("/myOrders", authMiddleware, getMyOrders);
+router.get("/myOrders", authMiddleware, getOrders);
 
 // 3. Hủy đơn hàng của bản thân
-router.patch("/:id/cancel", authMiddleware, cancelMyOrder);
+router.patch("/:id/cancel", authMiddleware, cancelOrder);
 
 // 4. Xem danh sách đơn hàng của quán (Cần đăng nhập + Role Restaurant)
 router.get("/manage", authMiddleware, isRestaurant, getRestaurantOrders);
