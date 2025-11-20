@@ -29,3 +29,18 @@ export const isAdmin = (req, res, next) => {
     }
     next();
 };
+
+
+export const isRestaurant = (req, res, next) => {
+    if (req.user.role !== "restaurant_manager" && req.user.role !== "admin") {
+        return next(new ApiError(403, "Yêu cầu quyền tài khoản nhà hàng"));
+    }
+    next();
+};
+
+export const isShipper = (req, res, next) => {
+    if (req.user.role !== "driver" && req.user.role !== "admin") {
+        return next(new ApiError(403, "Yêu cầu quyền tài khoản người giao hàng"));
+    }
+    next();
+};

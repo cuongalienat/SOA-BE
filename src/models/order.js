@@ -37,7 +37,7 @@ const orderSchema = new mongoose.Schema({
     },
     restaurant: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Restaurant', // Tham chiếu tới Restaurant Model
+        ref: 'Shop', // Tham chiếu tới Restaurant Model
         required: true,
     },
     items: {
