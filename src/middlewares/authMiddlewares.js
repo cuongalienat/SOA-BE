@@ -1,4 +1,3 @@
-// middlewares/authMiddleware.js
 import jwt from "jsonwebtoken";
 import ApiError from "../utils/ApiError.js";
 import User from "../models/user.js";
@@ -29,7 +28,6 @@ export const isAdmin = (req, res, next) => {
     }
     next();
 };
-
 
 export const isRestaurant = (req, res, next) => {
     if (req.user.role !== "restaurant_manager" && req.user.role !== "admin") {
