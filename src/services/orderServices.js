@@ -26,7 +26,7 @@ export const createOrderService = async (data) => {
                 throw new ApiError(404, `Món ăn với ID ${itemData.item} không tồn tại.`);
             }
 
-            if (dbItem.restaurant.toString() !== restaurantId) {
+            if (dbItem.shopId.toString() !== restaurantId) {
                 throw new ApiError(400, `Món ăn '${dbItem.name}' không thuộc về nhà hàng này.`);
             }
 
