@@ -1,6 +1,7 @@
 import express from "express";
 import { StatusCodes } from "http-status-codes";
 import authRoutes from './authRoutes.js';
+import orderRoutes from './orderRoutes.js';
 import userRoutes from './userRoutes.js';
 import itemRoutes from './itemRoutes.js';
 import shopRoutes from './shopRoutes.js';
@@ -17,6 +18,7 @@ Router.get("/status", (req, res) => {
 // route con
 Router.use("/auths", authRoutes);
 Router.use("/users", userRoutes);
+Router.use("/orders", orderRoutes);
 Router.use("/shops", shopRoutes);
 Router.use("/items", itemRoutes);
 
