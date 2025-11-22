@@ -1,4 +1,4 @@
-import { createAdminService, forgetPasswordService, signInService, signUpService, verifyUserService } from "../services/authServices.js";
+import { createAdminService, forgetPasswordService, signInService, signUpService, verifyUserService, resendOTPService } from "../services/authServices.js";
 import { StatusCodes } from 'http-status-codes';
 
 export const signUp = async (req, res, next) => {
@@ -27,7 +27,7 @@ export const signIn = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             message: "Login successful",
             token,
-            user: { id: user._id, email: user.email, username: user.username, role: user.role },
+            user: { id: user._id, email: user.email, username: user.username, role: user.role, isVerified: user.isVerified },
         });
     } catch (error) {
         next(error);
@@ -74,6 +74,17 @@ export const verifyUser = async (req, res, next) => {
         await verifyUserService(email, otpCode);
         res.status(StatusCodes.OK).json({
             message: "Account successfully verified.",
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+export const resendOTP = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        await resendOTPService(email);
+        res.status(StatusCodes.OK).json({
+            message: "OTP has been resent to your email.",
         });
     } catch (error) {
         next(error);
