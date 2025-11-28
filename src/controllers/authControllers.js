@@ -1,4 +1,4 @@
-import { createAdminService, forgetPasswordService, signInService, signUpService, verifyUserService } from "../services/authServices.js";
+import { createAdminService, forgetPasswordService, signInService, signUpService, verifyUserService, resendOTPService } from "../services/authServices.js";
 import { StatusCodes } from 'http-status-codes';
 
 export const signUp = async (req, res, next) => {
@@ -69,6 +69,17 @@ export const verifyUser = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             message: "Xác thực tài khoản thành công",
             email: email
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+export const resendOTP = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        await resendOTPService(email);
+        res.status(StatusCodes.OK).json({
+            message: "OTP has been resent to your email.",
         });
     } catch (error) {
         next(error);

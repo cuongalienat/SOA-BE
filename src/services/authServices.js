@@ -80,7 +80,7 @@ export const signInService = async (username, password) => {
 };
 
 export const forgetPasswordService = async (userData) => {
-    const { username, email, new_password, confirm_password } = userData;
+    const { email, new_password, confirm_password } = userData;
 
     const user = await User.findOne({ username });
     if (!user) {
@@ -95,6 +95,7 @@ export const forgetPasswordService = async (userData) => {
         throw new ApiError(StatusCodes.CONFLICT, "Mật khẩu xác nhận không khớp");
     }
 
+    user.password = new_password;
     await user.save();
     const { password: _, ...userWithoutPassword } = user.toObject();
     return {
@@ -132,3 +133,19 @@ export const verifyUserService = async (email, otpCode) => {
         user: userWithoutPassword
     };
 }
+
+export const resendOTPService = async (email) => {
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "User not found.");
+    }
+    const { verifyCode, verifyCodeExpires } = generateOTP();
+
+    user.verifyCode = verifyCode;
+    user.verifyCodeExpires = verifyCodeExpires;
+    await user.save();
+    await sendVerificationEmail(email, verifyCode);
+    return {
+        message: "A new verification code has been sent to your email."
+    };
+}   
