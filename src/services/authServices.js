@@ -30,11 +30,11 @@ export const signUpService = async (userData) => {
     // Check trùng Username và Email
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-        throw new ApiError(StatusCodes.CONFLICT, "Username already registered");
+        throw new ApiError(StatusCodes.CONFLICT, "Username đã được sử dụng");
     }
     const existingUserEmail = await User.findOne({ email });
     if (existingUserEmail) {
-        throw new ApiError(StatusCodes.CONFLICT, "Email already registered");
+        throw new ApiError(StatusCodes.CONFLICT, "Email đã được đăng ký");
     }
 
     const { verifyCode, verifyCodeExpires } = generateOTP();
@@ -44,7 +44,7 @@ export const signUpService = async (userData) => {
         { username, password, email, fullName, age, phone, verifyCode, verifyCodeExpires }
     );
     if (!newUser) {
-        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to create user");
+        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Không thể tạo người dùng mới");
     }
 
     const { password: _, ...userWithoutPassword } = newUser.toObject();
@@ -61,12 +61,12 @@ export const signUpService = async (userData) => {
 export const signInService = async (username, password) => {
     const user = await User.findOne({ username });
     if (!user) {
-        throw new ApiError(StatusCodes.UNAUTHORIZED, "Invalid email or password");
+        throw new ApiError(StatusCodes.UNAUTHORIZED, "Tài khoản không tồn tại");
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-        throw new ApiError(StatusCodes.UNAUTHORIZED, "Invalid email or password");
+        throw new ApiError(StatusCodes.UNAUTHORIZED, "Mật khẩu không đúng");
     }
 
     // Tạo JWT
@@ -75,21 +75,24 @@ export const signInService = async (username, password) => {
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN }
     );
-
-    return { user, token };
+    const { password: _, ...userWithoutPassword } = user.toObject();
+    return { user: userWithoutPassword, token: token };
 };
 
 export const forgetPasswordService = async (userData) => {
     const { email, new_password, confirm_password } = userData;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ username });
+    if (!user) {
+        throw new ApiError(StatusCodes.UNAUTHORIZED, "Tài khoản không tồn tại");
+    }
 
     if (email !== user.email) {
-        throw new ApiError(StatusCodes.UNAUTHORIZED, "Wrong email");
+        throw new ApiError(StatusCodes.UNAUTHORIZED, "Email không đúng");
     }
 
     if (new_password !== confirm_password) {
-        throw new ApiError(StatusCodes.CONFLICT, "Passwords do not match");
+        throw new ApiError(StatusCodes.CONFLICT, "Mật khẩu xác nhận không khớp");
     }
 
     user.password = new_password;
@@ -104,17 +107,17 @@ export const verifyUserService = async (email, otpCode) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-        throw new ApiError(StatusCodes.NOT_FOUND, "User not found.");
+        throw new ApiError(StatusCodes.NOT_FOUND, "Tài khoản không tồn tại");
     }
 
     // 2. KIỂM TRA MÃ OTP
     if (user.verifyCode !== otpCode) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid verification code.");
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Mã xác minh không đúng");
     }
 
     // 3. KIỂM TRA THỜI GIAN HẾT HẠN
     if (user.verifyCodeExpires < new Date()) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, "Verification code has expired. Please request a new one.");
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Mã xác minh đã hết hạn, hãy yêu cầu mã mới");
     }
 
     // 4. CẬP NHẬT TRẠNG THÁI
@@ -127,8 +130,7 @@ export const verifyUserService = async (email, otpCode) => {
     const { password: _, ...userWithoutPassword } = user.toObject();
 
     return {
-        user: userWithoutPassword,
-        message: "Account successfully verified."
+        user: userWithoutPassword
     };
 }
 
