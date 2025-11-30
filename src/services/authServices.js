@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import { generateOTP } from "../utils/otp.js";
 import { sendVerificationEmail } from "../utils/mailer.js";
-
+import { OAuth2Client } from "google-auth-library";
 
 export const createAdminService = async (adminData) => {
     const {
@@ -148,4 +148,72 @@ export const resendOTPService = async (email) => {
     return {
         message: "A new verification code has been sent to your email."
     };
-}   
+}
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+export const signInWithGoogleService = async (googleToken) => {
+    try {
+        // 1. Xác thực token với Server của Google
+        // Nếu token giả hoặc hết hạn, hàm này sẽ throw lỗi ngay
+        const ticket = await client.verifyIdToken({
+            idToken: googleToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        // 2. Lấy thông tin user từ payload của Google
+        const payload = ticket.getPayload();
+        const { email, name, sub } = payload;
+        // sub chính là Google ID duy nhất của user
+
+        // 3. Kiểm tra xem user này đã tồn tại trong DB chưa
+        let user = await User.findOne({ email });
+
+        if (user) {
+
+            // Nếu user này trước đây đăng ký bằng password, giờ muốn link với Google
+            if (!user.googleId) {
+                user.googleId = sub;
+            }
+
+            // Google đã xác thực email rồi, nên ta set luôn isVerified = true
+            if (!user.isVerified) {
+                user.isVerified = "yes";
+            }
+
+            await user.save();
+        } else {
+            const generatedUsername = email.split('@')[0];
+
+            user = await User.create({
+                username: generatedUsername,
+                fullName: generatedUsername,
+                age: null,
+                phone: null,
+                email: email,
+                googleId: sub,
+                isVerified: "yes",
+                password: null,
+            });
+        }
+
+        // 4. Tạo JWT Token của hệ thống (Giống hệt login thường)
+        const token = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN }
+        );
+
+        // 5. Chuẩn bị dữ liệu trả về (Bỏ password, googleId cho gọn)
+        const userObj = user.toObject();
+        delete userObj.password;
+        delete userObj.googleId;
+
+        return { user: userObj, token };
+
+    } catch (error) {
+        // Bắt lỗi từ Google Verify hoặc DB
+        console.error("Google Login Error:", error);
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Google Token không hợp lệ hoặc đã hết hạn.");
+    }
+};
