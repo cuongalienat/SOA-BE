@@ -55,13 +55,11 @@ const orderSchema = new mongoose.Schema({
         required: true,
         min: 0,
     },
-
     shippingFee: {
         type: Number,
         default: 0,
         min: 0,
     },
-
     status: {
         type: String,
         enum: ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Canceled'],
@@ -75,7 +73,7 @@ const orderSchema = new mongoose.Schema({
     },
     delivery: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Shipping',
+        ref: 'Delivery',
         default: null,
     },
     review: {

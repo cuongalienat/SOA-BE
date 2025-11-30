@@ -18,13 +18,18 @@ const paymentSchema = new moongoose.Schema({
     },
     method: {
         type: String,
-        Enum: ['COD', 'Bank Transfer'],
+        Enum: ['COD', 'Wallet'],
         required: true
     },
     status: {
         type: String,
         Enum: ['Pending', 'Completed', 'Failed', 'Refunded'],
         default: 'Pending'
+    },
+    transactionReference: {
+        type: moongoose.Schema.Types.ObjectId,
+        ref: 'Transaction',
+        default: null
     }
 }, { timestamps: true });
 
