@@ -1,10 +1,21 @@
 import express from "express";
-import { authMiddleware, isRestaurant } from "../../middlewares/authMiddlewares.js"; // isShopOwner là middleware mới cần tạo
-import { createShop, getMyShop, updateMyShop, updateShopStatus } from "../../controllers/shopControllers.js"; // Controller mới cần tạo
+import { authMiddleware, isShopOwner } from "../../middlewares/authMiddlewares.js"; // isShopOwner là middleware mới cần tạo
+import { 
+    createShop, 
+    getMyShop, 
+    updateMyShop, 
+    updateShopStatus,
+    getAllShops,      // <-- Import hàm mới
+    getShopById       // <-- Import hàm mới
+} from "../../controllers/shopControllers.js";
 
 const router = express.Router();
 
-router.use(authMiddleware, isRestaurant);
+router.get("/", getAllShops);
+
+router.get("/:id", getShopById);
+
+router.use(authMiddleware, isShopOwner);
 
 router.post("/", createShop);
 

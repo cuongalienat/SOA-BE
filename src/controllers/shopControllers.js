@@ -53,3 +53,28 @@ export const updateShopStatus = async (req, res, next) => {
         next(error);
     }
 };
+
+export const getAllShops = async (req, res, next) => {
+    try {
+        // Lấy page và limit từ query parameters của URL
+        const { page, limit } = req.query;
+        
+        // Truyền các tùy chọn này vào service
+        const result = await shopServices.getAllShopsService({ page, limit });
+
+        // Trả về kết quả đã bao gồm thông tin phân trang
+        res.status(StatusCodes.OK).json(result);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// --- HÀM MỚI ---
+export const getShopById = async (req, res, next) => {
+    try {
+        const shop = await shopServices.getShopByIdService(req.params.id);
+        res.status(StatusCodes.OK).json({ shop });
+    } catch (error) {
+        next(error);
+    }
+};
