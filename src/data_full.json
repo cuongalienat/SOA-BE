@@ -1,0 +1,487 @@
+[
+  {
+    "name": "Mixue - Nguyễn Trãi",
+    "address": "TP. Hồ Chí Minh",
+    "image": "https://images.foody.vn/res/g108/1077655/prof/s640x400/foody-upload-api-foody-mobile-hmb-d36c478a-210419145604.jpg",
+    "categories": [
+      {
+        "name": "SỮA HOA QUẢ",
+        "items": [
+          {
+            "name": "Sữa Thạch Kiwi Kiwi",
+            "price": 25000,
+            "description": "Mứt Kiwi + Thạch đào",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirgxp5rtor24@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Sữa Thạch Dâu Tây",
+            "price": 25000,
+            "description": "Mứt dâu tây + Thạch đào",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirg6whspam1c@resize_ss120x120!@crop_w120_h120_cT"
+          }
+        ]
+      },
+      {
+        "name": "CÀ PHÊ",
+        "items": [
+          {
+            "name": "Cafe Latte Kem Tươi",
+            "price": 28000,
+            "description": "Thạch đường đen + Latte + Kem tươi",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis03rkgrnt14@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cafe Latte Caramel Kem Tươi",
+            "price": 28000,
+            "description": "Syrup hạt dẻ và bơ+ Thạch đường đen + Latte + Kem tươi",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis3dfbjkzvbd@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cafe Mocha Kem Tươi",
+            "price": 28000,
+            "description": "Socola + Thạch đường đen + Latte + Kem tươi",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis0u6oo6q56d@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Mocha",
+            "price": 28000,
+            "description": "Cà phê + Sữa + Socola. Đá",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis68q99fk859@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Latte",
+            "price": 25000,
+            "description": "Cà phê + Sữa",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis4ntgtfkf2b@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Latte Đường Đen",
+            "price": 28000,
+            "description": "Cà phê + Sữa + Đường đen. Đá",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis5u437mdm90@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Hồng Trà Latte",
+            "price": 28000,
+            "description": "Cà phê + Trà sữa",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis6kpaxmvec4@resize_ss120x120!@crop_w120_h120_cT"
+          }
+        ]
+      },
+      {
+        "name": "KEM",
+        "items": [
+          {
+            "name": "Super Sundae Trân Châu Đường Đen",
+            "price": 28000,
+            "description": "Kem vani/Kem vải hoa hồng/Kem mix + Trân châu",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiqt37v6fpm48@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "SUPER SUNDAE XOÀI",
+            "price": 28000,
+            "description": "Kem vani/Kem vải hoa hồng/Kem mix + Mứt xoài",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiqtgpd26tl38@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Lucky Sundae O-coco",
+            "price": 28000,
+            "description": "Kem vani+ Vụn ốc quế + Socola + Oreo",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiqyu8gwyrz86@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Lucky Sundae Dâu Tây",
+            "price": 28000,
+            "description": "Kem vani  + Vụn ốc quế + Dâu tây",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiqz4v1dczyc4@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Super Sundae Kiwi Lô Hội",
+            "price": 28000,
+            "description": "Kem vani/Kem vải hoa hồng/Kem mix + Mứt lô hội+ Mứt Kiwi",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiqwmhk5u6h64@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Super Sundae O-coco    ",
+            "price": 28000,
+            "description": "Kem vani + Socola + Vụn Oreo",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgir3wyzhjil31@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Super Sundae Dâu Tây",
+            "price": 28000,
+            "description": "Kem vani + Mứt dâu tây",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiqyj31ozre08@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Super Sundae Đào Vàng",
+            "price": 28000,
+            "description": "Kem vani + Mứt đào vàng",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiqsspvowzz10@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Super Sundae Đào Hồng",
+            "price": 28000,
+            "description": "Kem vani + Mứt đào hồng",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiqsi2b80lq92@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Super Sundae Pudding Trân Châu",
+            "price": 28000,
+            "description": "Kem Trà sữa caramel + Trân châu + Pudding caramel",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgvodani5pu27c@resize_ss120x120!@crop_w120_h120_cT"
+          }
+        ]
+      },
+      {
+        "name": "TRÀ HOA QUẢ",
+        "items": [
+          {
+            "name": "Trà Đào Big Size",
+            "price": 25000,
+            "description": "Thạch đào + Mứt đào vàng+Hồng trà",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirzc4p7bpldd@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Chanh Lô Hội",
+            "price": 20000,
+            "description": "Hồng trà + Thạch dừa + Lô hội",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiryz0x7t3ge9@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Nước Chanh Tươi Lạnh",
+            "price": 18000,
+            "description": "Chanh tươi",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirx1ev0b9ofd@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Xanh Chanh",
+            "price": 18000,
+            "description": "Chanh tươi + trà xanh",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirxcv30cui1e@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Xanh Kiwi",
+            "price": 25000,
+            "description": "Thạch dừa + Thạch đào + Mứt kiwi + Trà xanh",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirr7x2agi1f4@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Xanh Hoa Đào",
+            "price": 25000,
+            "description": "Thạch đào + Mứt đào mật + Trà xanh",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirqu0ekv0s67@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Chanh Leo Bách Hương",
+            "price": 25000,
+            "description": "Thạch dừa + Trân châu + Mứt chanh leo + Trà xanh",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiruawb3g9a9f@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà xoài chanh leo",
+            "price": 25000,
+            "description": "Mứt chanh leo + Mứt xoài + Thạch dừa",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirqhx2xt73fc@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Dương Chi Cam Lộ",
+            "price": 31000,
+            "description": "Xoài + Trân châu + Thạch dừa + Thạch đào+ Kem vani",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirvq9e8i6k51@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Chanh Dâu Tây",
+            "price": 28000,
+            "description": "Chanh tươi + Mứt dâu tây + Trân châu trắng",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirma0f93bi1c@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Đào Dâu Tây",
+            "price": 25000,
+            "description": "Mứt dâu tây + Mứt đào + Trân châu trắng\nĐá/ ít đá/ không đá\n100% đường/ 70% đường/ 50% đường",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirjj7356oe64@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Nhài Mật Ong",
+            "price": 18000,
+            "description": "Trà nhài nguyên chất",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirms9x7ci28b@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Hồng Trà Mật Ong",
+            "price": 18000,
+            "description": "Hồng trà nguyên chất",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiro4cu5xqg89@resize_ss120x120!@crop_w120_h120_cT"
+          }
+        ]
+      },
+      {
+        "name": "TRÀ SỮA",
+        "items": [
+          {
+            "name": "Trà sữa bá vương",
+            "price": 33000,
+            "description": "Trân châu + Thạch dừa + Thạch đường đen",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgir9ju55wcu09@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa Trân Châu",
+            "price": 28000,
+            "description": "Trân châu",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgir2qngml1pe7@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa Thạch Dừa",
+            "price": 28000,
+            "description": "Thạch dừa",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgir49wkd6vcba@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa 2J",
+            "price": 28000,
+            "description": "Thạch Đào + Thạch Dừa",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiribqhu5fv09@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa O-coco",
+            "price": 31000,
+            "description": "Vụn oreo + Socola+ Thạch đường đen",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgir91dbivpp27@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa Trân Châu (size L)",
+            "price": 33000,
+            "description": "Trân châu",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirauyyg55adb@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà sữa Caramel",
+            "price": 28000,
+            "description": "Syrup hạt dẻ và bơ + Thạch đường đen",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgir02swjeh8a5@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa Thạch Dừa (size L)",
+            "price": 33000,
+            "description": "Thạch dừa",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirb5jh766j73@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa 2J (size L)",
+            "price": 33000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirhl5oa13f36@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa Cacao Pudding Caramel",
+            "price": 28000,
+            "description": "Syrup hạt dẻ và bơ + Socola + Pudding caramel",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgvoc2bsikgeaf@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa Thạch Đường Đen (size L)",
+            "price": 33000,
+            "description": "Thạch đường đen",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgirbyii61osc9@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa Thạch Đường Đen",
+            "price": 28000,
+            "description": "Thạch đường đen",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgir4rgyq8lr18@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Sữa Xoài Pudding",
+            "price": 28000,
+            "description": "Trà xanh + Sữa + Pudding caramel",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgvo8vib6ivc3c@resize_ss120x120!@crop_w120_h120_cT"
+          }
+        ]
+      },
+      {
+        "name": "TRÀ",
+        "items": [
+          {
+            "name": "Trà Ô Long Đào Trắng",
+            "price": 40000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiskl2t5wct0c@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Ô Long Vải",
+            "price": 40000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgislpn6xb0q6e@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Ô Long Dưa Mật",
+            "price": 40000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgism0b1tamid3@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Ô Long Hoa Quế",
+            "price": 40000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgismar3m32m33@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Trà Ô Long Nho",
+            "price": 40000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisl0a159fs13@resize_ss120x120!@crop_w120_h120_cT"
+          }
+        ]
+      },
+      {
+        "name": "ĐỒ ĂN VẶT",
+        "items": [
+          {
+            "name": "Khoai Tây Chiên Giòn Snow King (Vị Bơ Mật Ong)",
+            "price": 7000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisj8uwd7nx70@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Thạch Hút Hương Chanh",
+            "price": 12000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-7r98o-lqzxcn3o976h9f@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Thạch Hút Snow King (Hương Đào)",
+            "price": 10000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisjl9uwqh778@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Thạch Hút Snow King (Hương Dâu)",
+            "price": 10000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisk8w4g6byad@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Thạch Hút Snow King (Hương Nho)",
+            "price": 10000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisjvme4snj15@resize_ss120x120!@crop_w120_h120_cT"
+          }
+        ]
+      },
+      {
+        "name": "ĐỒ LƯU NIỆM",
+        "items": [
+          {
+            "name": "Lật Đật Tuyết Vương",
+            "price": 4000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisf960nnrd46@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Nhựa Hình Tuyết Vương Màu Xanh",
+            "price": 35000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisgndf6scp0a@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Băng Đô Cài Tóc Tuyết Vương",
+            "price": 50000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisiwe7lamkcc@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Người Tuyết Quả Chanh Nhồi Bông",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisdyx51vrd6c@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Nhựa Kèm Ống Hút",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis6v2rfvgs6b@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Sứ Cà Phê Màu Đen",
+            "price": 120000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisdcrz6l8pd9@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Người Tuyết Dâu Tây Nhồi Bông",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisewvhxn2m5b@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Nhựa Màu Hồng",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgis9tr3hwy4d4@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Nhựa Màu Xanh",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisa83vlvyh94@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Tự Khuấy (Hình Quả Đào)",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisbb0gn6dn7c@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Nhựa Hình Tuyết Vương Màu Hồng",
+            "price": 35000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisfyvwfnd7a8@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Tự Khuấy (Hình Quả Cam)",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisbm8ik9op25@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Tự Khuấy (Hình Quả Dâu)",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisbzedz02571@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Móc Chìa Khóa Tuyết Vương- Gấu Nâu",
+            "price": 100000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-7ras8-m1qivyv1ym67f8@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Cốc Tự Khuấy (Hình Que Kem)",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgiscflimvpq73@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Móc Chìa Khóa Tuyết Vương - Hổ Vàng",
+            "price": 100000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgishu0ystu6e1@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Móc Chìa Khóa Tuyết Vương- Thỏ Hồng",
+            "price": 100000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisi7548ydn73@resize_ss120x120!@crop_w120_h120_cT"
+          },
+          {
+            "name": "Người Tuyết Quả Đào Nhồi Bông",
+            "price": 150000,
+            "description": "",
+            "image": "https://mms.img.susercontent.com/vn-11134517-820l4-mgisdoh00i6ja2@resize_ss120x120!@crop_w120_h120_cT"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -48,3 +48,43 @@ export const updateShopStatusService = async (ownerId, isOpen) => {
     }
     return shop;
 };
+
+export const getAllShopsService = async (options = {}) => {
+    // 1. Thiết lập giá trị mặc định cho phân trang
+    const page = parseInt(options.page) || 1; // Mặc định là trang 1
+    const limit = parseInt(options.limit) || 10; // Mặc định là 10 shop mỗi trang
+    const skip = (page - 1) * limit; // Tính toán số lượng bản ghi cần bỏ qua
+
+    // 2. Tạo điều kiện truy vấn
+    const queryConditions = { isOpen: true }; // Chỉ lấy các shop đang mở cửa
+
+    // 3. Lấy dữ liệu của trang hiện tại
+    const shops = await Shop.find(queryConditions)
+        .populate('owner', 'name email')
+        .skip(skip)   // Bỏ qua các bản ghi của trang trước
+        .limit(limit); // Giới hạn số lượng bản ghi của trang này
+
+    // 4. Lấy tổng số lượng bản ghi để tính tổng số trang
+    const totalShops = await Shop.countDocuments(queryConditions);
+    const totalPages = Math.ceil(totalShops / limit);
+
+    // 5. Trả về một đối tượng chứa cả dữ liệu và thông tin phân trang
+    return {
+        data: shops,
+        pagination: {
+            currentPage: page,
+            limit: limit,
+            totalPages: totalPages,
+            totalItems: totalShops,
+        },
+    };
+};
+// --- SERVICE MỚI ---
+export const getShopByIdService = async (shopId) => {
+    const shop = await Shop.findById(shopId).populate('owner', 'name email');
+    if (!shop) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
+    }
+    // Sau này, bạn có thể lấy thêm cả menu của shop ở đây
+    return shop;
+};
