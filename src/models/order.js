@@ -30,14 +30,14 @@ const orderItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const orderSchema = new mongoose.Schema({
-    customer: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    restaurant: {
+    shop: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Restaurant', // Tham chiếu tới Restaurant Model
+        ref: 'Shop', // Tham chiếu tới Shop Model
         required: true,
     },
     items: {
@@ -78,9 +78,9 @@ const orderSchema = new mongoose.Schema({
         ref: 'Shipping',
         default: null,
     },
-    review: {
+    rating: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Review',
+        ref: 'Rating',
         default: null,
     },
 }, { timestamps: true })
