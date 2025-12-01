@@ -1,0 +1,155 @@
+import Order from "../models/order.js";
+import Item from "../models/Item.js";
+import mongoose from "mongoose";
+import ApiError from "../utils/ApiError.js"; // Giả sử bạn lưu file ApiError ở folder utils
+
+// 1. Tạo đơn hàng
+export const createOrderService = async (data) => {
+    const { customerId, restaurantId, items, shippingFee, paymentId } = data;
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        let calculatedTotalAmount = 0;
+        const orderItems = [];
+
+        // Kiểm tra danh sách items không rỗng
+        if (!items || items.length === 0) {
+            throw new ApiError(400, "Đơn hàng phải có ít nhất 1 món.");
+        }
+
+        for (const itemData of items) {
+            const dbItem = await Item.findById(itemData.item).session(session);
+
+            if (!dbItem) {
+                throw new ApiError(404, `Món ăn với ID ${itemData.item} không tồn tại.`);
+            }
+
+            if (dbItem.shopId.toString() !== restaurantId) {
+                throw new ApiError(400, `Món ăn '${dbItem.name}' không thuộc về nhà hàng này.`);
+            }
+
+            const itemTotal = dbItem.price * itemData.quantity;
+            calculatedTotalAmount += itemTotal;
+
+            orderItems.push({
+                item: dbItem._id,
+                name: dbItem.name,
+                price: dbItem.price,
+                quantity: itemData.quantity,
+                options: itemData.options || []
+            });
+        }
+
+        const finalTotal = calculatedTotalAmount + (shippingFee || 0);
+
+        const newOrder = new Order({
+            customer: customerId,
+            restaurant: restaurantId,
+            items: orderItems,
+            totalAmount: finalTotal,
+            shippingFee: shippingFee || 0,
+            status: 'Pending',
+            payment: paymentId
+        });
+
+        await newOrder.save({ session });
+        await session.commitTransaction();
+        session.endSession();
+
+        return newOrder;
+
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        // Ném lỗi ra ngoài để Controller/Middleware bắt
+        throw error;
+    }
+};
+
+// 2. Lấy chi tiết đơn
+export const getOrderByIdService = async (orderId) => {
+    const order = await Order.findById(orderId)
+        .populate('customer', 'name email phone address')
+        .populate('restaurant', 'name address phone')
+        .populate('items.item', 'image description')
+        .populate('payment')
+        .populate('delivery');
+
+    if (!order) {
+        throw new ApiError(404, 'Không tìm thấy đơn hàng.');
+    }
+    return order;
+};
+
+// 3. Cập nhật trạng thái
+export const updateOrderStatusService = async (orderId, newStatus) => {
+    const allowedStatuses = ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Canceled'];
+
+    if (!allowedStatuses.includes(newStatus)) {
+        throw new ApiError(400, 'Trạng thái không hợp lệ.');
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+        throw new ApiError(404, 'Đơn hàng không tồn tại.');
+    }
+
+    if (order.status === 'Canceled' && newStatus !== 'Canceled') {
+        throw new ApiError(400, 'Không thể cập nhật đơn hàng đã bị hủy.');
+    }
+
+    order.status = newStatus;
+    await order.save();
+    return order;
+};
+
+// 4. Hủy đơn
+export const cancelOrderService = async (orderId, userId) => {
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+        throw new ApiError(404, 'Đơn hàng không tồn tại.');
+    }
+
+    if (order.customer.toString() !== userId) {
+        throw new ApiError(403, 'Bạn không có quyền hủy đơn hàng này.');
+    }
+
+    if (order.status !== 'Pending') {
+        throw new ApiError(400, 'Không thể hủy đơn hàng khi quán đã nhận đơn.');
+    }
+
+    order.status = 'Canceled';
+    await order.save();
+    return order;
+};
+
+// 5. Lấy danh sách (giữ nguyên logic, chỉ thêm try catch nếu cần xử lý lỗi DB lạ)
+export const getOrdersService = async (filter = {}, page = 1, limit = 10) => {
+    const skip = (page - 1) * limit;
+    const orders = await Order.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('restaurant', 'name image')
+        .populate('customer', 'name');
+
+    const total = await Order.countDocuments(filter);
+
+    return {
+        orders,
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit)
+    };
+};
+
+export default {
+    createOrderService,
+    getOrderByIdService,
+    updateOrderStatusService,
+    cancelOrderService,
+    getOrdersService
+};

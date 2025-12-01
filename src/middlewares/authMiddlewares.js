@@ -1,4 +1,3 @@
-// middlewares/authMiddleware.js
 import jwt from "jsonwebtoken";
 import ApiError from "../utils/ApiError.js";
 import User from "../models/user.js";
@@ -30,11 +29,16 @@ export const isAdmin = (req, res, next) => {
     next();
 };
 
-export const isShopOwner = (req, res, next) => {
-    // Giả sử authMiddleware đã giải mã token và gắn user vào req
-    if (req.user && req.user.role === 'shop') {
-        next();
-    } else {
-        res.status(403).json({ message: "Forbidden: Access is allowed for shop owners only." });
+export const isRestaurant = (req, res, next) => {
+    if (req.user.role !== "restaurant_manager" && req.user.role !== "admin") {
+        return next(new ApiError(403, "Yêu cầu quyền tài khoản nhà hàng"));
     }
+    next();
+};
+
+export const isShipper = (req, res, next) => {
+    if (req.user.role !== "driver" && req.user.role !== "admin") {
+        return next(new ApiError(403, "Yêu cầu quyền tài khoản người giao hàng"));
+    }
+    next();
 };
