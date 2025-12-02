@@ -1,13 +1,15 @@
-/* File: src/seed.js - Phiên bản có Model Category */
+/* File: src/seed.js
+   Tác dụng: Nạp dữ liệu vào DB (Chế độ thông minh: Không lỗi trùng lặp)
+*/
+
 import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Import Models
 import Shop from './models/shop.js';
 import User from './models/user.js';
-import Category from './models/Category.js'; // Model mới
+import Category from './models/Category.js';
 import Item from './models/Item.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,32 +32,39 @@ const seedData = async () => {
         if (!fs.existsSync(DATA_FILE)) throw new Error("❌ Thiếu file data_full.json");
         const rawData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
 
-        // 1. Clear Data
-        console.log('🧹 Clearing old data...');
-        await Promise.all([
-            Shop.deleteMany({}),
-            Category.deleteMany({}), // Xóa category cũ
-            Item.deleteMany({}),
-            User.deleteMany({})
-        ]);
+        // 1. XỬ LÝ ADMIN USER (Fix lỗi E11000)
+        let owner = await User.findOne({ username: "admin_shopee" });
+        
+        if (!owner) {
+            console.log('👤 Đang tạo mới Admin User...');
+            owner = await User.create({
+                username: "admin_shopee",
+                fullName: "Admin ShopeeFood",
+                email: "admin@shopee.com",
+                password: "password123",
+                role: "restaurant_manager",
+                phone: "0909000888",
+                age: 30,
+                address: "Hà Nội"
+            });
+        } else {
+            console.log('👤 Admin User đã tồn tại -> Sử dụng User cũ.');
+        }
 
-        // 2. Create Owner
-        const owner = await User.create({
-            username: "admin_shopee",
-            fullName: "Admin ShopeeFood",
-            email: "admin@shopee.com",
-            password: "password123",
-            role: "restaurant_manager",
-            phone: "0909000888",
-            age: 30,
-            address: "Hà Nội"
-        });
+        console.log(`📦 Đang xử lý ${rawData.length} quán...`);
 
-        console.log(`📦 Importing ${rawData.length} shops...`);
-
-        // 3. Loop Shops
+        // 2. Vòng lặp thêm quán
         for (const shopData of rawData) {
-            // A. Tạo Shop
+            
+            // Kiểm tra quán đã tồn tại chưa
+            const existingShop = await Shop.findOne({ name: shopData.name });
+
+            if (existingShop) {
+                console.log(`   ⏭️ BỎ QUA: "${shopData.name}" (Đã có trong DB)`);
+                continue; 
+            }
+
+            // Tạo quán mới
             const newShop = await Shop.create({
                 owner: owner._id,
                 name: shopData.name,
@@ -63,46 +72,43 @@ const seedData = async () => {
                 coverImage: shopData.image,
                 phone: '090' + Math.floor(Math.random() * 10000000),
                 isOpen: true,
+                tags: shopData.categories.map(c => c.name)
             });
 
-            // B. Duyệt qua từng Category trong JSON
+            // Tạo Category và Item
             if (shopData.categories && Array.isArray(shopData.categories)) {
                 let displayOrder = 1;
 
                 for (const catData of shopData.categories) {
-                    // Tạo Category vào DB
                     const newCategory = await Category.create({
                         shopId: newShop._id,
-                        name: catData.name, // VD: "SỮA HOA QUẢ"
+                        name: catData.name,
                         displayOrder: displayOrder++
                     });
 
-                    // C. Chuẩn bị Items cho Category này
                     const itemsBuffer = [];
                     if (catData.items && Array.isArray(catData.items)) {
                         for (const item of catData.items) {
                             itemsBuffer.push({
                                 shopId: newShop._id,
-                                categoryId: newCategory._id, // 🔥 Link với Category vừa tạo
+                                categoryId: newCategory._id,
                                 name: item.name,
                                 price: cleanPrice(item.price),
-                                description: item.description || "",
+                                description: item.description || `Món ngon tại ${shopData.name}`, // Fix lỗi thiếu description
                                 imageUrl: item.image,
                                 isAvailable: true
                             });
                         }
                     }
-
-                    // Insert Items
                     if (itemsBuffer.length > 0) {
                         await Item.insertMany(itemsBuffer);
                     }
                 }
             }
-            console.log(`   -> 🏪 Đã thêm: "${newShop.name}"`);
+            console.log(`   ✅ ĐÃ THÊM MỚI: "${newShop.name}"`);
         }
 
-        console.log('\n🎉 SEED COMPLETE! Cấu trúc Shop -> Category -> Item đã chuẩn.');
+        console.log('\n🎉 SEED COMPLETE! Dữ liệu đã được cập nhật.');
         process.exit();
 
     } catch (error) {
