@@ -7,13 +7,12 @@ import { processPaymentDeductionService } from "./walletServices.js";
 
 // 1. Tạo đơn hàng
 export const createOrderService = async (data) => {
-    const { customerId, restaurantId, items, shippingFee, paymentId } = data;
+    const { customerId, restaurantId, items, shippingFee, paymentMethod, totalAmount } = data;
 
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-        let calculatedTotalAmount = 0;
         const orderItems = [];
 
         // Kiểm tra danh sách items không rỗng
@@ -32,9 +31,6 @@ export const createOrderService = async (data) => {
                 throw new ApiError(400, `Món ăn '${dbItem.name}' không thuộc về nhà hàng này.`);
             }
 
-            const itemTotal = dbItem.price * itemData.quantity;
-            calculatedTotalAmount += itemTotal;
-
             orderItems.push({
                 item: dbItem._id,
                 name: dbItem.name,
@@ -44,16 +40,13 @@ export const createOrderService = async (data) => {
             });
         }
 
-        const finalTotal = calculatedTotalAmount + (shippingFee || 0);
-
         const newOrder = new Order({
-            customer: customerId,
-            restaurant: restaurantId,
+            user: customerId,
+            shop: restaurantId,
             items: orderItems,
-            totalAmount: finalTotal,
+            totalAmount: totalAmount,
             shippingFee: shippingFee || 0,
             status: 'Pending',
-            payment: paymentId
         });
         let transactionRef = null;
         let paymentStatus = 'Pending';
@@ -137,7 +130,7 @@ export const cancelOrderService = async (orderId, userId) => {
         throw new ApiError(404, 'Đơn hàng không tồn tại.');
     }
 
-    if (order.customer.toString() !== userId) {
+    if (order.user.toString() !== userId) {
         throw new ApiError(403, 'Bạn không có quyền hủy đơn hàng này.');
     }
 
@@ -157,8 +150,8 @@ export const getOrdersService = async (filter = {}, page = 1, limit = 10) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('restaurant', 'name image')
-        .populate('customer', 'name');
+        .populate('shop', 'name image')
+        .populate('user', 'name');
 
     const total = await Order.countDocuments(filter);
 
