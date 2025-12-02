@@ -1,21 +1,26 @@
 /**
- * Định nghĩa riêng một Class ApiError kế thừa class Error sẵn (điều này cần thiết và là Best Practice vì class Error nó là class built-in sẵn)
+ * src/utils/ApiError.js
+ * Class tùy chỉnh để chuẩn hóa các lỗi trong hệ thống
  */
 class ApiError extends Error {
-    constructor(statusCode, message) {
-        // Gọi tới hàm khởi tạo của class Error (class cha) để còn dùng this (kiến thức OOP lập trình hướng đối tượng căn bản)
-        // Thằng cha (Error) có property message rồi nên gọi nó luôn trong super cho gọn
-        super(message)
+  constructor(statusCode, message, errors = [], stack = '') {
+    super(message);
+    
+    this.statusCode = statusCode;
+    // Mảng chứa chi tiết lỗi (VD: lỗi từng field validation)
+    this.errors = errors; 
+    // Nếu là lỗi 4xx thì là 'fail', 5xx thì là 'error'
+    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
+    // isOperational = true: Lỗi đã dự tính (Validation, Not Found...). 
+    // isOperational = false: Lỗi lập trình (Syntax, Null pointer...).
+    this.isOperational = true; 
 
-        // Tên của cái custom Error này, nếu không set thì mặc định nó sẽ kế thừa là "Error"
-        this.name = 'ApiError'
-
-        // Gán thêm http status code của chúng ta ở đây
-        this.statusCode = statusCode
-
-        // Ghi lại Stack Trace (dấu vết ngăn xếp) để thuận tiện cho việc debug
-        Error.captureStackTrace(this, this.constructor)
+    if (stack) {
+      this.stack = stack;
+    } else {
+      Error.captureStackTrace(this, this.constructor);
     }
+  }
 }
 
-export default ApiError
+export default ApiError;
