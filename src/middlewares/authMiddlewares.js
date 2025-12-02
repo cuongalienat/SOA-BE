@@ -42,3 +42,12 @@ export const isShipper = (req, res, next) => {
     }
     next();
 };
+
+export const isShopOwner = (req, res, next) => {
+    // authMiddleware chạy trước nên ta đã có req.user
+    if (req.user && (req.user.role === 'restaurant_manager' || req.user.role === 'admin')) {
+        next(); // Cho qua
+    } else {
+        res.status(403).json({ message: 'Truy cập bị từ chối! Bạn không phải là Chủ quán.' });
+    }
+};

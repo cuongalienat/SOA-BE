@@ -30,14 +30,14 @@ const orderItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const orderSchema = new mongoose.Schema({
-    customer: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    restaurant: {
+    shop: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Shop', // Tham chiếu tới Restaurant Model
+        ref: 'Shop', // Tham chiếu tới Shop Model
         required: true,
     },
     items: {
@@ -55,13 +55,11 @@ const orderSchema = new mongoose.Schema({
         required: true,
         min: 0,
     },
-
     shippingFee: {
         type: Number,
         default: 0,
         min: 0,
     },
-
     status: {
         type: String,
         enum: ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Canceled'],
@@ -75,12 +73,12 @@ const orderSchema = new mongoose.Schema({
     },
     delivery: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Shipping',
+        ref: 'Delivery',
         default: null,
     },
-    review: {
+    rating: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Review',
+        ref: 'Rating',
         default: null,
     },
 }, { timestamps: true })

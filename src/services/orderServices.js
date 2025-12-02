@@ -2,6 +2,8 @@ import Order from "../models/order.js";
 import Item from "../models/Item.js";
 import mongoose from "mongoose";
 import ApiError from "../utils/ApiError.js"; // Giả sử bạn lưu file ApiError ở folder utils
+import Payment from "../models/payment.js";
+import { processPaymentDeductionService } from "./walletServices.js";
 
 // 1. Tạo đơn hàng
 export const createOrderService = async (data) => {
@@ -53,11 +55,33 @@ export const createOrderService = async (data) => {
             status: 'Pending',
             payment: paymentId
         });
+        let transactionRef = null;
+        let paymentStatus = 'Pending';
 
+        // 2. XỬ LÝ THANH TOÁN VÍ
+        if (paymentMethod === 'WALLET') {
+            // Gọi service trừ tiền, truyền session vào để đảm bảo cùng 1 transaction
+            const trans = await processPaymentDeductionService(customerId, finalTotal, newOrder._id, session);
+
+            transactionRef = trans._id;
+            paymentStatus = 'Completed'; // Trừ tiền xong thì coi như đã thanh toán
+            newOrder.status = 'Confirmed'; // Đơn hàng tự động xác nhận luôn
+        }
+
+        // 3. Lưu Order
         await newOrder.save({ session });
-        await session.commitTransaction();
-        session.endSession();
 
+        // 4. Tạo bản ghi Payment (Biên lai)
+        await Payment.create([{
+            order: newOrder._id,
+            user: customerId,
+            amount: totalAmount,
+            method: paymentMethod,
+            status: paymentStatus,
+            transactionReference: transactionRef // Link tới lịch sử trừ tiền
+        }], { session });
+
+        await session.commitTransaction();
         return newOrder;
 
     } catch (error) {
