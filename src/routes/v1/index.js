@@ -5,7 +5,7 @@ import orderRoutes from './orderRoutes.js';
 import userRoutes from './userRoutes.js';
 import itemRoutes from './itemRoutes.js';
 import shopRoutes from './shopRoutes.js';
-import deliveryRoutes from "./delivery.js";
+import deliveryRoutes from './deliveryRoutes.js';
 import ratingRoutes from './ratingRoutes.js';
 
 const Router = express.Router();

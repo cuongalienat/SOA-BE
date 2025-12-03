@@ -90,21 +90,29 @@ export const getShopDetailService = async (shopId) => {
         throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
     }
 
-    const categories = await Category.find({ shopId: shopId }).sort({ displayOrder: 1 });
-    const items = await Item.find({ shopId: shopId, isAvailable: true });
+    // BƯỚC 2: Lấy danh sách Category (Sắp xếp theo thứ tự hiển thị)
+    // lean() giúp query nhanh hơn, trả về plain object thay vì mongoose document
+    const categories = await Category.find({ shopId: shopId }).sort({ displayOrder: 1 }).lean();
+    
+    // BƯỚC 3: Lấy toàn bộ Item đang bán
+    const items = await Item.find({ shopId: shopId, isAvailable: true }).lean();
 
+    // BƯỚC 4: Ghép Item vào Category (Mapping in Memory - Tối ưu hơn gọi DB nhiều lần)
     const menu = categories.map(category => {
         const itemsByCategory = items.filter(item => 
+            // So sánh String của ID để tránh lỗi objectId
             item.categoryId && item.categoryId.toString() === category._id.toString()
         );
 
         return {
             _id: category._id,
             name: category.name,
+            description: category.description, // Trả thêm mô tả nhóm nếu có
             items: itemsByCategory
         };
     });
 
+    // BƯỚC 5: Xử lý món chưa phân loại (dự phòng)
     const otherItems = items.filter(item => !item.categoryId);
     if (otherItems.length > 0) {
         menu.push({
