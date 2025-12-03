@@ -5,6 +5,7 @@ import orderRoutes from './orderRoutes.js';
 import userRoutes from './userRoutes.js';
 import itemRoutes from './itemRoutes.js';
 import shopRoutes from './shopRoutes.js';
+import deliveryRoutes from "./delivery.js";
 import ratingRoutes from './ratingRoutes.js';
 
 const Router = express.Router();
@@ -22,6 +23,7 @@ Router.use("/users", userRoutes);
 Router.use("/orders", orderRoutes);
 Router.use("/shops", shopRoutes);
 Router.use("/items", itemRoutes);
+Router.use("deliveries", deliveryRoutes)
 Router.use("/ratings", ratingRoutes);
 
 export const APIs_v1 = Router;
