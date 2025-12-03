@@ -1,34 +1,49 @@
-import mongoose from "mongoose";
+/* File: src/models/shop.js */
+import mongoose from 'mongoose';
 
 const shopSchema = new mongoose.Schema({
-    // Liên kết với user sở hữu shop
-    owner: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        ref: 'User' // Tham chiếu đến model 'User'
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    
+    name: { type: String, required: true },
+    address: { type: String, required: true },
+    
+    // Ảnh bìa (Lấy url từ res_photos)
+    coverImage: { type: String, default: "" }, 
+
+    photos: [
+        {
+            width: Number,
+            height: Number,
+            value: String // URL ảnh
+        }
+    ],
+    
+    // Lưu mảng số điện thoại (Thay vì 1 số như trước)
+    phones: [{ type: String }],
+    
+    // Đánh giá (Rating)
+    rating: {
+        avg: { type: Number, default: 0 },         // 4.7
+        total_review: { type: Number, default: 0 } // 100
     },
-    name: {
-        type: String,
-        required: true,
-        trim: true
+
+    // Khoảng giá (Price Range)
+    priceRange: {
+        min: { type: Number, default: 0 },
+        max: { type: Number, default: 0 }
     },
-    address: {
-        type: String,
-        required: true
-    },
-    phone: {
-        type: String,
-        required: true
-    },
-    // Trạng thái quán: mở cửa/đóng cửa
-    isOpen: {
-        type: Boolean,
-        default: true
-    },
-    // Thêm các trường ảnh sau này
-    coverImage: { type: String },
-    qrImage: { type: String }
+
+    // Giờ mở cửa (Time)
+    openingHours: [{
+        day: { type: Number, required: true }, // 1 = CN, 2 = Thứ 2...
+        open: { type: String, required: true }, // VD: "07:30"
+        close: { type: String, required: true } // VD: "21:30"
+    }],
+
+    isOpen: { type: Boolean, default: true },
+    tags: [{ type: String }] 
+
 }, { timestamps: true });
 
-const Shop = mongoose.model("Shop", shopSchema);
+const Shop = mongoose.model('Shop', shopSchema);
 export default Shop;

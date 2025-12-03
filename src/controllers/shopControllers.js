@@ -27,9 +27,25 @@ export const getMyShop = async (req, res, next) => {
 
 export const updateMyShop = async (req, res, next) => {
     try {
-        // Chỉ cho phép cập nhật: name, address, phone, coverImage, qrImage
-        const { name, address, phone, coverImage, qrImage } = req.body;
-        const shop = await shopServices.updateShopService(req.user.id, { name, address, phone, coverImage, qrImage });
+        // Cho phép cập nhật tất cả các trường mới
+        // Lưu ý: userId lấy từ token để đảm bảo chỉ sửa quán của mình
+        const updateData = req.body; 
+
+        // Tốt nhất nên lọc bớt các trường nhạy cảm không cho sửa (VD: owner, rating, isVerified...)
+        const allowedUpdates = {
+            name: updateData.name,
+            address: updateData.address,
+            phone: updateData.phone,
+            coverImage: updateData.coverImage,
+            photos: updateData.photos,             // <-- Thêm cái này
+            openingHours: updateData.openingHours, // <-- Thêm cái này
+            priceRange: updateData.priceRange,     // <-- Thêm cái này
+            qrImage: updateData.qrImage
+        };
+
+        Object.keys(allowedUpdates).forEach(key => allowedUpdates[key] === undefined && delete allowedUpdates[key]);
+
+        const shop = await shopServices.updateShopService(req.user.id, allowedUpdates);
         
         res.status(StatusCodes.OK).json({ 
             message: "Shop updated successfully",
