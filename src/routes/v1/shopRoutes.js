@@ -1,28 +1,33 @@
 import express from "express";
-import { authMiddleware, isShopOwner } from "../../middlewares/authMiddlewares.js"; // isShopOwner là middleware mới cần tạo
+import { authMiddleware, isShopOwner } from "../../middlewares/authMiddlewares.js"; 
 import { 
     createShop, 
     getMyShop, 
     updateMyShop, 
     updateShopStatus,
-    getAllShops,      // <-- Import hàm mới
-    getShopById       // <-- Import hàm mới
+    getAllShops,      
+    getShopDetails       
 } from "../../controllers/shopControllers.js";
 
 const router = express.Router();
 
+// 1. Lấy danh sách tất cả shop
 router.get("/", getAllShops);
 
-router.get("/:id", getShopById);
+// 2. Tạo mới một shop (Cần đăng nhập)
+router.post("/", authMiddleware, createShop); 
 
-router.use(authMiddleware, isShopOwner);
+// 3. Lấy thông tin shop của chính mình (Cần đăng nhập)
+router.get("/my-shop", authMiddleware, getMyShop); 
 
-router.post("/", createShop);
+// 4. Update Shop (Cần đăng nhập + Phải là chủ shop)
+// Dùng cả 2 middleware: check login -> check chủ sở hữu
+router.put("/my-shop", authMiddleware, isShopOwner, updateMyShop);
 
-router.get("/my-shop", getMyShop);
+// 5. Update trạng thái mở/đóng cửa
+router.patch("/my-shop/status", authMiddleware, isShopOwner, updateShopStatus);
 
-router.put("/my-shop", updateMyShop);
-
-router.patch("/my-shop/status", updateShopStatus);
+// 6. Lấy chi tiết thông tin một shop theo ID
+router.get("/:id", getShopDetails);
 
 export default router;

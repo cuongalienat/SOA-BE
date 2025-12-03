@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 //Menu 
 const itemSchema = new mongoose.Schema({
     name: { type: String, required: [true, "Tên món ăn là bắt buộc"], trim: true },
-    description: { type: String, default: "" },    category: { type: String, required: true },
+    description: { type: String, default: "" }, 
 
     price: { type: Number, required: [true, "Giá tiền là bắt buộc"], min: [0, "Giá tiền không thể âm"] },
     imageUrl: { 

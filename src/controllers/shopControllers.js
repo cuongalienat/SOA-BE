@@ -13,8 +13,13 @@ export const createShop = async (req, res, next) => {
 
 export const getMyShop = async (req, res, next) => {
     try {
-        const shop = await shopServices.getShopByOwnerService(req.user.id);
-        res.status(StatusCodes.OK).json({ shop });
+        const shops = await shopServices.getShopByOwnerService(req.user.id);
+        
+        // Trả về { shops: [...] } thay vì { shop: ... }
+        res.status(StatusCodes.OK).json({ 
+            count: shops.length, // Thêm cái này cho tiện frontend xử lý
+            shops 
+        });
     } catch (error) {
         next(error);
     }
@@ -69,11 +74,15 @@ export const getAllShops = async (req, res, next) => {
     }
 };
 
-// --- HÀM MỚI ---
-export const getShopById = async (req, res, next) => {
+// src/controllers/shopControllers.js
+
+export const getShopDetails = async (req, res, next) => {
     try {
-        const shop = await shopServices.getShopByIdService(req.params.id);
-        res.status(StatusCodes.OK).json({ shop });
+        // Gọi hàm service mới update
+        const data = await shopServices.getShopDetailService(req.params.id);
+        
+        // Trả về cục data to đùng gồm Shop + Menu
+        res.status(StatusCodes.OK).json(data);
     } catch (error) {
         next(error);
     }
