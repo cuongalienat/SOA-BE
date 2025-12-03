@@ -69,7 +69,7 @@ const orderSchema = new mongoose.Schema({
     payment: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Payment',
-        required: true,
+        default: null,
     },
     delivery: {
         type: mongoose.Schema.Types.ObjectId,
