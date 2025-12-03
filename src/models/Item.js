@@ -3,14 +3,14 @@ import mongoose from "mongoose";
 //Menu 
 const itemSchema = new mongoose.Schema({
     name: { type: String, required: [true, "Tên món ăn là bắt buộc"], trim: true },
-    description: { type: String, default: "" }, 
+    description: { type: String, default: "" },
 
     price: { type: Number, required: [true, "Giá tiền là bắt buộc"], min: [0, "Giá tiền không thể âm"] },
-    imageUrl: { 
-        type: String, 
-        default: "https://via.placeholder.com/300x300.png?text=No+Image" 
+    imageUrl: {
+        type: String,
+        default: "https://via.placeholder.com/300x300.png?text=No+Image"
     },
-    shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'shop', required: true },
+    shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
     categoryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',

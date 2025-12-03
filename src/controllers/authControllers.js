@@ -88,12 +88,12 @@ export const resendOTP = async (req, res, next) => {
 
 export const signInWithGoogle = async (req, res, next) => {
     try {
-        const { token } = req.body;
-        console.log("TOKEN GOOGLE:", token);
-        const { user, jwtToken } = await signInWithGoogleService(token);
+        const { googleToken } = req.body;
+        console.log("TOKEN GOOGLE:", googleToken);
+        const { user, token } = await signInWithGoogleService(googleToken);
         res.status(StatusCodes.OK).json({
             message: "Đăng nhập với Google thành công",
-            token: jwtToken,
+            token: token,
             user: user,
         });
     } catch (error) {

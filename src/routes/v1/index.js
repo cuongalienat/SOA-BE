@@ -25,6 +25,6 @@ Router.use("/shops", shopRoutes);
 Router.use("/items", itemRoutes);
 Router.use("deliveries", deliveryRoutes)
 Router.use("/ratings", ratingRoutes);
-Router.use("/wallets", walletRoutes);
+// Router.use("/wallets", walletRoutes);
 
 export const APIs_v1 = Router;
