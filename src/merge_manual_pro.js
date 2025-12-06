@@ -1,4 +1,4 @@
-/* File: src/merge_manual_pro.js - Ultimate Version (Deep Scan Menu & Time) */
+/* File: src/merge_manual_pro.js - Final Merge (Info Pro + Menu Standard) */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -13,10 +13,11 @@ const OUTPUT_FILE = path.join(__dirname, 'data_full.json');
 const DEFAULT_ITEM_IMG = "https://via.placeholder.com/300x300.png?text=No+Image";
 const DEFAULT_COVER_IMG = "https://via.placeholder.com/640x400.png?text=Shop+Image";
 
-// --- HÀM QUÉT TÌM MÓN ĂN ---
+// --- HÀM HELPER: QUÉT TÌM MÓN ĂN (Logic của bạn) ---
 function findDishesArray(obj, foundLists = []) {
     if (!obj || typeof obj !== 'object') return foundLists;
     if (Array.isArray(obj)) {
+        // Dấu hiệu nhận biết mảng món ăn: có 'name' và có 'price'
         if (obj.length > 0 && obj[0].name && (obj[0].price !== undefined || obj[0].market_price !== undefined)) {
             foundLists.push(obj);
         } else {
@@ -28,31 +29,19 @@ function findDishesArray(obj, foundLists = []) {
     return foundLists;
 }
 
-// --- HÀM QUÉT TÌM GIỜ MỞ CỬA (MỚI) ---
-// Nó tìm mọi mảng có tên "week_days" hoặc "times" chứa thông tin giờ
+// --- HÀM HELPER: QUÉT TÌM GIỜ MỞ CỬA (Logic mới nhất) ---
 function findTimeArray(obj) {
     if (!obj || typeof obj !== 'object') return null;
-
-    // 1. Kiểm tra nếu chính object này chứa key mong muốn
-    if (obj.week_days && Array.isArray(obj.week_days) && obj.week_days.length > 0) {
-        return obj.week_days; // Cấu trúc Web
-    }
+    if (obj.week_days && Array.isArray(obj.week_days) && obj.week_days.length > 0) return obj.week_days;
     if (obj.times && Array.isArray(obj.times) && obj.times.length > 0) {
-        // Kiểm tra kỹ hơn xem bên trong 'times' có start_time không (tránh nhầm lẫn)
-        if (obj.times[0].start_time || obj.times[0].days) {
-            return obj.times; // Cấu trúc Mobile
-        }
+        if (obj.times[0].start_time || obj.times[0].days) return obj.times;
     }
-
-    // 2. Nếu là mảng, duyệt từng phần tử
     if (Array.isArray(obj)) {
         for (let item of obj) {
             const result = findTimeArray(item);
             if (result) return result;
         }
-    } 
-    // 3. Nếu là object, duyệt từng key
-    else {
+    } else {
         for (let key of Object.keys(obj)) {
             const result = findTimeArray(obj[key]);
             if (result) return result;
@@ -63,29 +52,32 @@ function findTimeArray(obj) {
 
 async function main() {
     try {
-        console.log('🔄 Đang đọc dữ liệu...');
+        console.log('🔄 Đang đọc dữ liệu đầu vào...');
         
         if (!fs.existsSync(FILE_INFO) || !fs.existsSync(FILE_MENU)) {
             console.error("❌ Thiếu file input!"); return;
         }
-        
-        // Parse JSON an toàn
+
+        // Parse JSON
         let infoData, menuData;
         try {
             infoData = JSON.parse(fs.readFileSync(FILE_INFO, 'utf-8'));
             menuData = JSON.parse(fs.readFileSync(FILE_MENU, 'utf-8'));
-        } catch (e) { console.error("❌ Lỗi JSON."); return; }
+        } catch (e) { console.error("❌ Lỗi cú pháp JSON."); return; }
 
-        // --- 1. XỬ LÝ INFO ---
-        // Tự dò tìm object delivery_detail
+        // ============================================================
+        // PHẦN 1: XỬ LÝ INFO (GIỮ NGUYÊN LOGIC XỊN ĐỂ LẤY GIỜ & ẢNH)
+        // ============================================================
+        
+        // 1. Tìm object delivery_detail
         let d = null;
         if (infoData.reply && infoData.reply.delivery_detail) d = infoData.reply.delivery_detail;
         else if (infoData.delivery_detail) d = infoData.delivery_detail;
-        else if (infoData.name && infoData.address) d = infoData; // Trường hợp copy phần ruột
+        else if (infoData.name && infoData.address) d = infoData;
 
-        if (!d) { console.error("❌ Không tìm thấy dữ liệu quán."); return; }
+        if (!d) { console.error("❌ Không tìm thấy dữ liệu quán trong Info."); return; }
 
-        // Xử lý Ảnh
+        // 2. Xử lý Ảnh (Lấy full mảng)
         let rawPhotos = [];
         if (d.res_photos && d.res_photos.length > 0 && d.res_photos[0].photos) rawPhotos = d.res_photos[0].photos;
         else if (d.photos && Array.isArray(d.photos)) rawPhotos = d.photos;
@@ -97,35 +89,22 @@ async function main() {
             selectedCover = ideal ? ideal.value : fullPhotos[fullPhotos.length - 1].value;
         }
 
-        // --- 🔴 QUÉT TÌM GIỜ MỞ CỬA (Dùng hàm đệ quy) 🔴 ---
+        // 3. Xử lý Giờ mở cửa (Dùng hàm Deep Scan Time mới nhất)
         console.log("🕒 Đang quét tìm giờ mở cửa...");
         const workingTime = [];
-        
-        // Gọi hàm quét sâu vào biến d (delivery_detail)
-        const foundTimeSource = findTimeArray(d);
+        const foundTimeSource = findTimeArray(d); // Gọi hàm quét giờ
 
         if (foundTimeSource) {
-            console.log(`   ✅ Tìm thấy nguồn dữ liệu giờ (${foundTimeSource.length} mục).`);
-            
             foundTimeSource.forEach(t => {
-                // Loại 1: Mobile (Gộp ngày) -> Bung lụa ra
-                if (t.days && Array.isArray(t.days)) {
-                    t.days.forEach(day => {
-                        workingTime.push({ day: day, open: t.start_time, close: t.end_time });
-                    });
-                } 
-                // Loại 2: Web (Từng ngày lẻ)
-                else {
+                if (t.days && Array.isArray(t.days)) { // Mobile
+                    t.days.forEach(day => workingTime.push({ day, open: t.start_time, close: t.end_time }));
+                } else { // Web
                     const day = t.week_day !== undefined ? t.week_day : t.day;
-                    workingTime.push({
-                        day: day,
-                        open: t.start_time,
-                        close: t.end_time
-                    });
+                    workingTime.push({ day, open: t.start_time, close: t.end_time });
                 }
             });
         } else {
-            console.warn("⚠️ Không tìm thấy giờ mở cửa ở bất cứ đâu. Dùng mặc định.");
+            console.warn("⚠️ Không tìm thấy giờ. Dùng mặc định 7:00-22:00.");
             for(let i=1; i<=8; i++) workingTime.push({ day: i, open: "07:00", close: "22:00" });
         }
 
@@ -135,7 +114,7 @@ async function main() {
             phones: d.phones || [],
             image: selectedCover,
             photos: fullPhotos,
-            openingHours: workingTime, // Kết quả
+            openingHours: workingTime,
             rating: {
                 avg: d.rating ? d.rating.avg : 0,
                 total_review: d.rating ? d.rating.total_review : 0
@@ -148,31 +127,46 @@ async function main() {
         };
 
         console.log(`✅ [INFO] ${shopData.name}`);
-        console.log(`   -> Giờ mở cửa: ${shopData.openingHours.length} ngày.`);
 
-        // --- 2. XỬ LÝ MENU (Logic cũ vẫn ngon) ---
-        const allDishLists = findDishesArray(menuData);
+        // ============================================================
+        // PHẦN 2: XỬ LÝ MENU (DÙNG LOGIC BẠN YÊU CẦU)
+        // ============================================================
+        
+        const shopeeData = menuData; // Map tên biến cho khớp logic cũ của bạn
+        const allDishLists = findDishesArray(shopeeData);
         let categories = [];
+
         if (allDishLists.length > 0) {
-            if (menuData.reply && menuData.reply.menu_infos) {
-                 menuData.reply.menu_infos.forEach(grp => {
+            // Logic 1: Menu Infos (Web)
+            if (shopeeData.reply && shopeeData.reply.menu_infos) {
+                 shopeeData.reply.menu_infos.forEach(grp => {
                      const items = grp.dishes.map(d => ({
-                         name: d.name, price: d.price.value, description: d.description || "",
+                         name: d.name,
+                         price: d.price.value,
+                         description: d.description || "",
+                         // 👇 Logic lấy ảnh từ code bạn gửi
                          imageUrl: (d.photos && d.photos.length > 0) ? d.photos[0].value : DEFAULT_ITEM_IMG,
-                         isAvailable: d.is_available
+                         isAvailable: true
                      }));
                      categories.push({ name: grp.dish_type_name, items });
                  });
-            } else if (menuData.reply && menuData.reply.dish_type_infos) {
-                 menuData.reply.dish_type_infos.forEach(grp => {
+            } 
+            // Logic 2: Dish Type Infos (App)
+            else if (shopeeData.reply && shopeeData.reply.dish_type_infos) {
+                 shopeeData.reply.dish_type_infos.forEach(grp => {
                      const items = grp.dishes.map(d => ({
-                         name: d.name, price: d.price.value, description: d.description || "",
+                         name: d.name,
+                         price: d.price.value,
+                         description: d.description || "",
                          imageUrl: (d.photos && d.photos.length > 0) ? d.photos[0].value : DEFAULT_ITEM_IMG,
-                         isAvailable: d.is_available
+                         isAvailable: true
                      }));
                      categories.push({ name: grp.dish_type_name, items });
                  });
-            } else {
+            } 
+            // Logic 3: Deep Scan Fallback
+            if (categories.length === 0) {
+                console.log("   ⚠️ Dùng Deep Scan gộp món...");
                 const allItems = [];
                 allDishLists.forEach(list => {
                     list.forEach(dish => {
@@ -181,19 +175,30 @@ async function main() {
                         let price = 0;
                         if (dish.price && dish.price.value) price = dish.price.value;
                         else if (dish.market_price) price = Number(dish.market_price);
+
                         allItems.push({
-                            name: dish.name, price: price, description: dish.description || "",
-                            imageUrl: img || DEFAULT_ITEM_IMG, isAvailable: true
+                            name: dish.name,
+                            price: price,
+                            description: dish.description || "",
+                            imageUrl: img || DEFAULT_ITEM_IMG,
+                            isAvailable: true
                         });
                     });
                 });
                 const uniqueItems = [...new Map(allItems.map(item => [item['name'], item])).values()];
-                categories.push({ name: "Thực Đơn Tổng Hợp", items: uniqueItems });
+                categories.push({ name: "Thực Đơn", items: uniqueItems });
             }
+        } else {
+            console.log('❌ Lỗi: JSON Menu không chứa món ăn nào.');
+            // return; // Không return để vẫn lưu Info quán dù không có menu
         }
-        shopData.categories = categories;
 
-        // Lưu file
+        shopData.categories = categories;
+        console.log(`✅ [MENU] Đã lấy ${categories.length} nhóm món.`);
+
+        // ============================================================
+        // PHẦN 3: LƯU FILE
+        // ============================================================
         let currentData = [];
         if (fs.existsSync(OUTPUT_FILE)) {
             try {
@@ -201,6 +206,7 @@ async function main() {
                 if (content.trim()) currentData = JSON.parse(content);
             } catch (e) {}
         }
+
         const index = currentData.findIndex(s => s.name === shopData.name);
         if (index !== -1) {
             currentData[index] = shopData;
@@ -209,10 +215,13 @@ async function main() {
             currentData.push(shopData);
             console.log(`➕ Created.`);
         }
+
         fs.writeFileSync(OUTPUT_FILE, JSON.stringify(currentData, null, 2));
         console.log(`🎉 XONG! Chạy 'node src/seed.js'`);
 
-    } catch (error) { console.error('❌ Lỗi:', error.message); }
+    } catch (error) {
+        console.error('❌ Lỗi:', error.message);
+    }
 }
 
 main();

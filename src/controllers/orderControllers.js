@@ -7,6 +7,7 @@ export const createOrder = async (req, res, next) => {
     try {
         // Lấy ID người dùng từ token (đã qua middleware auth)
         const customerId = req.user._id;
+        console.log("Customer ID from token:", customerId);
 
         // Gọi service
         const newOrder = await orderService.createOrderService({
