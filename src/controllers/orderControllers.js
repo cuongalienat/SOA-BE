@@ -57,8 +57,7 @@ export const getOrderDetails = async (req, res, next) => {
 // 3. Lấy danh sách đơn hàng của Khách hàng (Lịch sử mua hàng)
 export const getOrders = async (req, res, next) => {
     try {
-        const { page, limit, status } = req.query;
-        const userId = req.user._id;
+        const { page, limit, status, userId } = req.params;
 
         // Tạo bộ lọc
         const filter = { customer: userId };

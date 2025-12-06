@@ -15,7 +15,6 @@ export const createOrderService = async (data) => {
     session.startTransaction();
 
     try {
-        let calculatedTotalAmount = 0;
         const orderItems = [];
 
         // Kiểm tra danh sách items không rỗng
@@ -39,9 +38,6 @@ export const createOrderService = async (data) => {
                 throw new ApiError(400, `Món ăn '${dbItem.name}' không thuộc về nhà hàng này.`);
             }
 
-            const itemTotal = dbItem.price * itemData.quantity;
-            calculatedTotalAmount += itemTotal;
-
             orderItems.push({
                 item: dbItem._id,
                 name: dbItem.name,
@@ -51,13 +47,11 @@ export const createOrderService = async (data) => {
             });
         }
 
-        const finalTotal = calculatedTotalAmount + (shippingFee || 0);
-
         const newOrder = new Order({
             user: customerId,
             shop: shopId,
             items: orderItems,
-            totalAmount: finalTotal,
+            totalAmount: totalAmount,
             shippingFee: shippingFee || 0,
             status: 'Pending',
             // payment: paymentId

@@ -16,7 +16,7 @@ const itemSchema = new mongoose.Schema({
         ref: 'Category',
         required: true
     },
-    
+
     // Trạng thái món (Còn hàng/Hết hàng)
     isAvailable: { type: Boolean, default: true }
 }, {
