@@ -10,7 +10,9 @@ import ApiError from '../utils/ApiError.js'; // Giả sử bạn có một class
 export const getAllItems = async (req, res, next) => {
     try {
         const filter = req.query.shopId ? { shopId: req.query.shopId } : {};
-        const items = await itemService.findAllItems(filter);
+        const { page, limit } = req.query;
+
+        const items = await itemService.findAllItems(filter, page, limit);
 
         res.status(StatusCodes.OK).json({
             success: true,
@@ -138,7 +140,7 @@ export const getItemsByAddress = async (req, res, next) => {
 
         // Validate cơ bản
         if (!keyword) {
-             throw new ApiError(StatusCodes.BAD_REQUEST, 'Vui lòng nhập địa chỉ cần tìm');
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Vui lòng nhập địa chỉ cần tìm');
         }
 
         const result = await itemService.findItemsByAddress(keyword, page, limit);

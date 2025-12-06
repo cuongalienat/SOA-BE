@@ -209,7 +209,7 @@ export const signInWithGoogleService = async (googleToken) => {
         delete userObj.password;
         delete userObj.googleId;
 
-        return { user: userObj, token };
+        return { user: userObj, token: token };
 
     } catch (error) {
         // Bắt lỗi từ Google Verify hoặc DB
