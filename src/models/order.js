@@ -11,6 +11,9 @@ const orderItemSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    imageUrl: {
+        type: String
+    },
     price: {
         type: Number,
         required: true,
@@ -65,6 +68,10 @@ const orderSchema = new mongoose.Schema({
         enum: ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Canceled'],
         default: 'Pending',
         required: true,
+    },
+    address: {
+        type: String,
+        require: true,
     },
     payment: {
         type: mongoose.Schema.Types.ObjectId,

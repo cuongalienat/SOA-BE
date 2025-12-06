@@ -7,7 +7,7 @@ import { processPaymentDeductionService } from "./walletServices.js";
 
 // 1. Tạo đơn hàng
 export const createOrderService = async (data) => {
-    const { customerId, restaurantId, items, shippingFee, paymentMethod, totalAmount } = data;
+    const { customerId, restaurantId, items, shippingFee, address, paymentMethod, totalAmount } = data;
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -34,6 +34,7 @@ export const createOrderService = async (data) => {
             orderItems.push({
                 item: dbItem._id,
                 name: dbItem.name,
+                imageUrl: dbItem.imageUrl,
                 price: dbItem.price,
                 quantity: itemData.quantity,
                 options: itemData.options || []
@@ -46,6 +47,7 @@ export const createOrderService = async (data) => {
             items: orderItems,
             totalAmount: totalAmount,
             shippingFee: shippingFee || 0,
+            address: address,
             status: 'Pending',
         });
         let transactionRef = null;
@@ -54,7 +56,8 @@ export const createOrderService = async (data) => {
         // 2. XỬ LÝ THANH TOÁN VÍ
         if (paymentMethod === 'WALLET') {
             // Gọi service trừ tiền, truyền session vào để đảm bảo cùng 1 transaction
-            const trans = await processPaymentDeductionService(customerId, finalTotal, newOrder._id, session);
+            // Lưu ý: finalTotal chưa được define ở trên, dùng totalAmount
+            const trans = await processPaymentDeductionService(customerId, totalAmount, newOrder._id, session);
 
             transactionRef = trans._id;
             paymentStatus = 'Completed'; // Trừ tiền xong thì coi như đã thanh toán
@@ -88,9 +91,8 @@ export const createOrderService = async (data) => {
 // 2. Lấy chi tiết đơn
 export const getOrderByIdService = async (orderId) => {
     const order = await Order.findById(orderId)
-        .populate('customer', 'name email phone address')
-        .populate('restaurant', 'name address phone')
-        .populate('items.item', 'image description')
+        .populate('user', 'name email phone address')
+        .populate('shop', 'name address phone')
         .populate('payment')
         .populate('delivery');
 

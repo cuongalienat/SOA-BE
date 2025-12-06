@@ -20,8 +20,7 @@ router.post("/", authMiddleware, createShop);
 router.use(authMiddleware, isRestaurant);
 
 // 4. Update Shop (Cần đăng nhập + Phải là chủ shop)
-// Dùng cả 2 middleware: check login -> check chủ sở hữu
-router.put("/my-shop", authMiddleware, isRestaurant, updateMyShop);
+// Dùng cả 2 middleware: check login -> check chủ sở hữu;
 
 router.get("/my-shop", authMiddleware, isRestaurant, getMyShop);
 
