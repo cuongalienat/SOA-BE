@@ -1,6 +1,8 @@
 import DeliveryModel from '../models/delivery.js';
 import ApiError from '../utils/ApiError.js';
 import { StatusCodes } from 'http-status-codes';
+import OrderModel from '../models/order.js';
+import Shipper from '../models/shipper.js';
 
 // 1. Tạo chuyến giao hàng mới (Thường được gọi khi Order vừa tạo xong)
 const createDelivery = async (deliveryData) => {
@@ -20,6 +22,33 @@ const getDeliveryById = async (deliveryId) => {
 
 // 3. Tài xế nhận đơn (Xử lý Concurrency - Race Condition)
 const assignShipper = async (deliveryId, shipperId) => {
+  const shipperProfile = await Shipper.findOne({ user: shipperId });
+  if (!shipperProfile) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Hồ sơ tài xế không tồn tại.');
+  }
+
+  if (shipperProfile.status == 'OFFLINE') {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Bạn đang ở trạng thái OFFLINE, không thể nhận đơn.');
+  }
+
+  if (shipperProfile.status === 'SHIPPING') {
+      // Check kỹ lại xem có đơn nào đang dang dở thật không?
+      const currentJob = await DeliveryModel.findOne({
+          shipperId: shipperId,
+          status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+      });
+
+      if (currentJob) {
+          // Nếu có đơn thật -> Chặn
+          throw new ApiError(StatusCodes.BAD_REQUEST, 'Bạn đang giao một đơn khác, không thể nhận thêm!');
+      } else {
+          // Nếu không có đơn nào -> Dữ liệu bị ảo -> Tự động Reset về ONLINE
+          console.warn(`⚠️ Phát hiện lỗi trạng thái Shipper ${shipperId}. Tự động Reset về ONLINE.`);
+          shipperProfile.status = 'ONLINE';
+          await shipperProfile.save();
+          // Code sẽ chạy tiếp xuống dưới để nhận đơn này...
+      }
+  }
   const updatedDelivery = await DeliveryModel.findOneAndUpdate(
     { 
       _id: deliveryId, 
@@ -28,7 +57,7 @@ const assignShipper = async (deliveryId, shipperId) => {
     {
       $set: { status: 'ASSIGNED', shipperId: shipperId },
       $push: {
-        trackingLogs: { status: 'ASSIGNED', updatedBy: shipperId }
+        trackingLogs: { status: 'ASSIGNED', updatedBy: shipperId, note: "Tài xế đã nhận đơn" }
       }
     },
     { new: true }
@@ -37,6 +66,14 @@ const assignShipper = async (deliveryId, shipperId) => {
   if (!updatedDelivery) {
     throw new ApiError(StatusCodes.CONFLICT, 'Đơn hàng đã có người nhận hoặc đã bị hủy!');
   }
+
+  shipperProfile.status = 'SHIPPING';
+    await shipperProfile.save();
+
+  await OrderModel.findByIdAndUpdate(updatedDelivery.orderId, { 
+      status: 'Confirmed' 
+  });
+
   return updatedDelivery;
 };
 
@@ -81,12 +118,52 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
     { new: true }
   );
 
+  let orderStatus = '';
+  switch (newStatus) {
+      case 'PICKING_UP': 
+          orderStatus = 'Preparing'; // Tài xế đang đến -> Quán đang chuẩn bị
+          break;
+      case 'DELIVERING': 
+          orderStatus = 'Out for Delivery'; // Tài xế đã lấy hàng -> Đang giao
+          break;
+      case 'COMPLETED': 
+          orderStatus = 'Delivered'; // Giao thành công
+          // TODO: Nếu thanh toán tiền mặt (Cash), cập nhật luôn paymentStatus = 'Completed'
+          break;
+      case 'CANCELLED': 
+          orderStatus = 'Canceled'; 
+          break;
+  }
+
+  if (orderStatus) {
+      await OrderModel.findByIdAndUpdate(delivery.orderId, { status: orderStatus });
+  }
+
+  if (newStatus === 'COMPLETED' || newStatus === 'CANCELLED') {
+      await Shipper.findOneAndUpdate(
+          { user: userId },
+          { status: 'ONLINE' } // Quay về Online để nhận đơn mới
+      );
+  }
+
   return updatedDelivery;
+};
+
+const getCurrentDelivery = async (userId) => {
+    // Tìm đơn nào của ông này mà chưa Xong (COMPLETED) và chưa Hủy (CANCELLED)
+    const activeDelivery = await DeliveryModel.findOne({
+        shipperId: userId,
+        status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+    })
+    .populate('orderId'); // Populate để lấy chi tiết món ăn, giá tiền bên Order
+
+    return activeDelivery; // Có thể trả về null nếu không có đơn nào
 };
 
 export const deliveryService = {
   createDelivery,
   getDeliveryById,
   assignShipper,
-  updateStatus
+  updateStatus,
+  getCurrentDelivery
 };
