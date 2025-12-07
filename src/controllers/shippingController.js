@@ -1,50 +1,72 @@
 /* File: src/controllers/shippingController.js */
 import { getCoordinates, getDistance } from '../services/goongServices.js';
-import { calculateShippingFee } from '../services/shippingServices.js';
+import { calculateShippingFee } from '../services/shippingServices.js'; // Sửa lại tên file nếu là shippingServices.js
 import Shop from '../models/shop.js';
 import { StatusCodes } from 'http-status-codes';
+import ApiError from '../utils/ApiError.js';
 
 export const calculateFee = async (req, res, next) => {
     try {
-        // 👇 THÊM: Nhận subTotal từ Body
-        const { shopId, userAddress, subTotal } = req.body; 
+        const { shopId, userAddress, subTotal } = req.body;
 
-        // 1. Lấy tọa độ quán
-        const shop = await Shop.findById(shopId);
-        if (!shop) return res.status(StatusCodes.NOT_FOUND).json({ message: "Shop not found" });
-
-        // Goong nhận Lat,Lng hoặc Lng,Lat tùy endpoint, DistanceMatrix thường là lat,lng
-        const shopCoords = `${shop.location.coordinates[1]},${shop.location.coordinates[0]}`; 
-
-        // 2. Lấy tọa độ khách
-        let userCoords = "";
-        if (typeof userAddress === 'string') {
-            const coords = await getCoordinates(userAddress);
-            if (!coords) return res.status(StatusCodes.BAD_REQUEST).json({ message: "Invalid Address" });
-            userCoords = `${coords.lat},${coords.lng}`;
-        } else {
-            userCoords = `${userAddress.lat},${userAddress.lng}`;
+        // 1. Validate đầu vào
+        if (!shopId || !userAddress) {
+            throw new ApiError(StatusCodes.BAD_REQUEST, "Thiếu thông tin Shop hoặc Địa chỉ khách hàng.");
         }
 
-        // 3. Gọi Goong tính khoảng cách
-        const distanceData = await getDistance(shopCoords, userCoords);
-        if (!distanceData) return res.status(500).json({ message: "Cannot calculate distance" });
+        // 2. Lấy tọa độ quán
+        const shop = await Shop.findById(shopId);
+        if (!shop) throw new ApiError(StatusCodes.NOT_FOUND, "Không tìm thấy cửa hàng.");
 
-        // 4. Tính tiền (Truyền distanceValue là Mét, và subTotal)
+        const shopCoords = `${shop.location.coordinates[1]},${shop.location.coordinates[0]}`; // Lat,Lng
+
+        // 3. Xử lý tọa độ khách hàng (Hỗ trợ cả String địa chỉ và Object tọa độ)
+        let userCoords = "";
+        
+        if (typeof userAddress === 'string') {
+            // Case 1: Gửi lên chuỗi "123 Đường Láng..." -> Cần Geocoding
+            const coords = await getCoordinates(userAddress);
+            if (!coords) throw new ApiError(StatusCodes.BAD_REQUEST, "Không tìm thấy địa chỉ này trên bản đồ.");
+            userCoords = `${coords.lat},${coords.lng}`;
+        } else if (userAddress.lat && userAddress.lng) {
+            // Case 2: Gửi lên { lat: 21..., lng: 105... } -> Dùng luôn (Nhanh hơn)
+            userCoords = `${userAddress.lat},${userAddress.lng}`;
+        } else {
+            throw new ApiError(StatusCodes.BAD_REQUEST, "Format địa chỉ không hợp lệ.");
+        }
+
+        // 4. Gọi Goong tính khoảng cách (Logic Y HỆT orderServices)
+        const distanceData = await getDistance(shopCoords, userCoords);
+        if (!distanceData) {
+            return res.status(StatusCodes.SERVICE_UNAVAILABLE).json({ 
+                message: "Không thể tính phí vận chuyển lúc này (Lỗi Map)." 
+            });
+        }
+
+        // 5. Tính tiền ship (Dùng chung hàm calculateShippingFee với orderServices)
         const shippingFee = calculateShippingFee(distanceData.distanceValue, subTotal || 0);
 
+        // 6. Trả về kết quả
         res.status(StatusCodes.OK).json({
-            distance: distanceData.distanceText, // "5.2 km"
-            duration: distanceData.durationText, // "20 mins"
-            shippingFee: shippingFee,            // Kết quả cuối cùng (VND)
-            currency: "VND",
-            details: {
-                distanceKm: (distanceData.distanceValue / 1000).toFixed(1) + ' km',
-                subTotalRecieved: subTotal || 0
+            success: true,
+            data: {
+                distanceText: distanceData.distanceText, // "5.2 km"
+                durationText: distanceData.durationText, // "20 mins"
+                shippingFee: shippingFee,                // 25000 (VND)
+                
+                // Trả về thêm chi tiết để Frontend debug hoặc hiển thị
+                details: {
+                    distanceMeters: distanceData.distanceValue,
+                    subTotalUsed: subTotal || 0
+                }
             }
         });
 
     } catch (error) {
         next(error);
     }
+};
+
+export const shippingController = {
+    calculateFee
 };
