@@ -3,7 +3,10 @@ import ApiError from "../utils/ApiError.js";
 
 // Danh sách domain được phép gọi API
 const allowedOrigins = [
-    "http://localhost:5173", // FE chạy local
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+     // FE chạy local
 ];
 
 export const corsOptions = {

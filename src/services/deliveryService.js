@@ -87,8 +87,11 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
   const validTransitions = {
     'SEARCHING': ['ASSIGNED', 'CANCELLED'], // Admin hủy hoặc có người nhận
     'ASSIGNED': ['PICKING_UP', 'CANCELLED'], // Shipper hủy hoặc bắt đầu lấy hàng
-    'PICKING_UP': ['DELIVERING'], // Lấy xong -> đi giao
-    'DELIVERING': ['COMPLETED'],  // Giao xong
+    // 👇 SỬA DÒNG NÀY: Cho phép PICKING_UP update lại chính nó (cập nhật vị trí lúc đi lấy hàng)
+    'PICKING_UP': ['PICKING_UP', 'DELIVERING'], 
+      
+    // 👇 SỬA DÒNG NÀY: Cho phép DELIVERING update lại chính nó (cập nhật vị trí lúc đi giao)
+    'DELIVERING': ['DELIVERING', 'COMPLETED'],
     'COMPLETED': [], // Kết thúc
     'CANCELLED': []
   };
