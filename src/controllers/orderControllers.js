@@ -32,19 +32,6 @@ export const getOrderDetails = async (req, res, next) => {
         const { id } = req.params;
         const order = await orderService.getOrderByIdService(id);
 
-        // Kiểm tra quyền xem đơn hàng (Bảo mật)
-        // Chỉ Customer chủ đơn hoặc Restaurant chủ quán mới được xem
-        const userId = req.user._id.toString();
-
-        // Lưu ý: order.customer và order.restaurant là Object (do đã populate), nên cần lấy ._id
-        const customerId = order.customer._id.toString();
-        const restaurantId = order.restaurant._id.toString();
-
-        // Logic phân quyền đơn giản:
-        if (userId !== customerId && userId !== restaurantId && req.user.role !== 'admin') {
-            throw new ApiError(403, "Bạn không có quyền xem chi tiết đơn hàng này.");
-        }
-
         res.status(200).json({
             success: true,
             data: order

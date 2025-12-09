@@ -12,8 +12,7 @@ import { calculateShippingFee } from "./shippingServices.js";
 
 // 1. Tạo đơn hàng
 export const createOrderService = async (data) => {
-    // userLocation bây giờ có thể chỉ chứa { address: "..." }
-    const { customerId, shopId, items, paymentMethod, userLocation } = data;
+    const { customerId, shopId, items, shippingFee, address, paymentMethod, totalAmount, userLocation } = data;
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -65,6 +64,7 @@ export const createOrderService = async (data) => {
             orderItems.push({
                 item: dbItem._id,
                 name: dbItem.name,
+                imageUrl: dbItem.imageUrl,
                 price: dbItem.price,
                 quantity: itemData.quantity,
                 options: itemData.options || [],
@@ -92,6 +92,7 @@ export const createOrderService = async (data) => {
             items: orderItems,
             totalAmount: finalTotal,
             shippingFee: realShippingFee,
+            address: address,
             status: 'Pending',
             payment: null 
         });
@@ -173,8 +174,8 @@ export const createOrderService = async (data) => {
 // 2. Lấy chi tiết đơn
 export const getOrderByIdService = async (orderId) => {
     const order = await Order.findById(orderId)
-        .populate('customer', 'name email phone address')
-        .populate('shop', 'name address phones')
+        .populate('user', 'name email phone address')
+        .populate('shop', 'name address phone')
         .populate('items.item', 'image description')
         .populate('payment')
         .populate('delivery');

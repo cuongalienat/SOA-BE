@@ -1,4 +1,4 @@
-import * as walletService from "../services/walletService.js";
+import * as walletService from "../services/walletServices.js";
 import { StatusCodes } from "http-status-codes";
 
 // Lấy thông tin ví (Số dư)
