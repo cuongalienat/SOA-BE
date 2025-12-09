@@ -12,6 +12,7 @@ import { findNearbyShippers } from "./shipperServices.js";
 import { getIO } from "../utils/socket.js";
 
 // 1. Tạo đơn hàng
+export const createOrderService = async (data) => {
     // userLocation bây giờ có thể chỉ chứa { address: "..." }
     const { customerId, shopId, items, paymentMethod, userLocation } = data;
 
@@ -182,7 +183,7 @@ import { getIO } from "../utils/socket.js";
             // vì đơn hàng đã tạo thành công rồi.
             console.error("⚠️ Lỗi điều phối shipper:", socketError.message);
         }
-
+        
         return { 
             ...newOrder.toObject(), 
             distance: realDistance, 
