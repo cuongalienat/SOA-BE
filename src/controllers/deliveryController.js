@@ -1,6 +1,6 @@
 import { deliveryService } from '../services/deliveryService.js';
 import { StatusCodes } from 'http-status-codes';
-import { io } from '../../index.js'; 
+// import { io } from '../../index.js'; 
 
 const createNewDelivery = async (req, res, next) => {
   try {
@@ -30,63 +30,48 @@ const getDeliveryDetails = async (req, res, next) => {
     next(error);
   }
 };
-
-const acceptDelivery = async (req, res, next) => {
+export const updateDelivery = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
-    // BẮT BUỘC: Lấy từ token đã verify
-    const shipperId = req.user._id; 
-    
-    // Gọi service
-    const result = await deliveryService.assignShipper(id, shipperId);
+    const { status, location } = req.body; // Lấy dữ liệu từ body
+    const userId = req.user._id;           // Lấy ID shipper từ Token
 
-    // TODO: Emit Socket cho khách hàng biết "Tài xế Nguyễn Văn A đã nhận đơn"
-    // _io.to(result.orderId).emit('DELIVERY_UPDATED', result);
-
-    io.to(result.orderId.toString()).emit('ORDER_STATUS_UPDATE', {
-        status: 'Confirmed',
-        shipperId: shipperId,
-        message: 'Tài xế đã nhận đơn và đang đến quán!'
-    });
-
-    res.status(StatusCodes.OK).json({
-      success: true,
-      message: 'Nhận đơn thành công!',
-      data: result
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const updateDeliveryStatus = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { status, location } = req.body; // location: { lat, lng }
-    // const userId = req.user._id;
-    const { userId } = req.body; // Demo tạm
-
-    const result = await deliveryService.updateStatus(id, status, userId, location);
-
-    // TODO: Tại đây Emit Socket.io báo cho khách hàng biết
-    // 🔥 SOCKET REALTIME:
-    // 1. Nếu thay đổi trạng thái (VD: Đã lấy món) -> Báo khách cập nhật UI
-    io.to(result.orderId.toString()).emit('ORDER_STATUS_UPDATE', {
-        status: result.status, // PICKING_UP, DELIVERING...
-        message: 'Trạng thái đơn hàng đã thay đổi'
-    });
-
-    // 2. Nếu có tọa độ mới -> Báo khách để vẽ lại icon xe máy
-    if (location) {
-        io.to(result.orderId.toString()).emit('SHIPPER_MOVED', location);
+    if (!status) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Vui lòng gửi trạng thái cần cập nhật (status)');
     }
 
+    let result;
+    let message = '';
+
+    // --- LOGIC ĐIỀU HƯỚNG (DISPATCHER) ---
+
+    // TRƯỜNG HỢP 1: Tài xế muốn NHẬN ĐƠN
+    if (status === 'ASSIGNED') {
+      // Gọi service xử lý tranh chấp (Race Condition)
+      result = await deliveryService.assignShipper(id, userId);
+      message = 'Nhận đơn hàng thành công!';
+    } 
+    
+    // TRƯỜNG HỢP 2: Tài xế cập nhật hành trình (Đang lấy hàng, Đang giao...)
+    else {
+      // Các trạng thái hợp lệ: PICKING_UP, DELIVERING, COMPLETED, CANCELLED
+      // Gọi service update thông thường
+      result = await deliveryService.updateStatus(id, status, userId, location);
+      message = 'Cập nhật trạng thái đơn hàng thành công';
+      
+      // TODO: Emit Socket.io ở đây để báo cho khách hàng
+      if (req.io) {
+          req.io.to(result.orderId.toString()).emit('DELIVERY_UPDATED', result);
+      }
+    }
+
+    // Trả về kết quả
     res.status(StatusCodes.OK).json({
       success: true,
-      message: 'Cập nhật trạng thái thành công',
+      message: message,
       data: result
     });
+
   } catch (error) {
     next(error);
   }
@@ -118,7 +103,6 @@ const getCurrentJob = async (req, res, next) => {
 export const deliveryController = {
   createNewDelivery,
   getDeliveryDetails,
-  acceptDelivery,
-  updateDeliveryStatus,
+  updateDelivery,
   getCurrentJob
 };

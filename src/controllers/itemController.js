@@ -1,28 +1,38 @@
 // SOA-BE/src/controllers/itemController.js
 
 import { StatusCodes } from 'http-status-codes';
-import itemService from '../services/itemServices.js'; // Đảm bảo service của bạn cũng export default hoặc export named
-import ApiError from '../utils/ApiError.js'; // Giả sử bạn có một class ApiError tùy chỉnh
+import itemService from '../services/itemServices.js'; 
+import ApiError from '../utils/ApiError.js'; 
 
 /**
  * Lấy tất cả các món ăn (có thể lọc theo nhà hàng)
  */
-export const getAllItems = async (req, res, next) => {
-    try {
-        const filter = req.query.shopId ? { shopId: req.query.shopId } : {};
+export const getItems = async (req, res, next) => {
+  try {
+    const { name, address, page, limit } = req.query;
+
+    let result;
+
+    // Logic điều hướng (Dispatcher)
+    if (name) {
+      result = await itemService.findItemsByName(name, page, limit);
+    } else if (address) {
+      result = await itemService.findItemsByAddress(address, page, limit);
+    } else {
         const { page, limit } = req.query;
 
-        const items = await itemService.findAllItems(filter, page, limit);
-
-        res.status(StatusCodes.OK).json({
-            success: true,
-            message: "Lấy danh sách món ăn thành công",
-            count: items.length,
-            data: items
-        });
-    } catch (error) {
-        next(error); // Đẩy lỗi về middleware xử lý lỗi
+      // Nếu không có param tìm kiếm thì lấy tất cả
+      result = await itemService.findAllItems({}, page, limit, page, limit);
     }
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: result.items || result.data, // Map tùy theo format service của bạn
+      meta: result.meta
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 /**
@@ -111,47 +121,47 @@ export const deleteItem = async (req, res, next) => {
  * Tìm kiếm món ăn theo tên (Có phân trang)
  * API: GET /api/items/search/name?keyword=phở&page=1&limit=10
  */
-export const getItemsByName = async (req, res, next) => {
-    try {
-        const { keyword, page, limit } = req.query;
+// export const getItemsByName = async (req, res, next) => {
+//     try {
+//         const { keyword, page, limit } = req.query;
 
-        // Gọi service xử lý logic tìm kiếm
-        const result = await itemService.findItemsByName(keyword, page, limit);
+//         // Gọi service xử lý logic tìm kiếm
+//         const result = await itemService.findItemsByName(keyword, page, limit);
 
-        res.status(StatusCodes.OK).json({
-            success: true,
-            message: "Tìm kiếm món ăn theo tên thành công",
-            data: result.items,
-            meta: result.meta // Trả về thông tin phân trang (total page, current page...)
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+//         res.status(StatusCodes.OK).json({
+//             success: true,
+//             message: "Tìm kiếm món ăn theo tên thành công",
+//             data: result.items,
+//             meta: result.meta // Trả về thông tin phân trang (total page, current page...)
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
 
-/**
- * Tìm kiếm món ăn theo địa chỉ quán (Có phân trang)
- * API: GET /api/items/search/address?keyword=Hà Nội&page=1&limit=10
- * Lưu ý: Hàm này giả định bạn muốn tìm các món ăn thuộc các quán nằm ở địa chỉ này.
- */
-export const getItemsByAddress = async (req, res, next) => {
-    try {
-        const { keyword, page, limit } = req.query;
+// /**
+//  * Tìm kiếm món ăn theo địa chỉ quán (Có phân trang)
+//  * API: GET /api/items/search/address?keyword=Hà Nội&page=1&limit=10
+//  * Lưu ý: Hàm này giả định bạn muốn tìm các món ăn thuộc các quán nằm ở địa chỉ này.
+//  */
+// export const getItemsByAddress = async (req, res, next) => {
+//     try {
+//         const { keyword, page, limit } = req.query;
 
-        // Validate cơ bản
-        if (!keyword) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, 'Vui lòng nhập địa chỉ cần tìm');
-        }
+//         // Validate cơ bản
+//         if (!keyword) {
+//             throw new ApiError(StatusCodes.BAD_REQUEST, 'Vui lòng nhập địa chỉ cần tìm');
+//         }
 
-        const result = await itemService.findItemsByAddress(keyword, page, limit);
+//         const result = await itemService.findItemsByAddress(keyword, page, limit);
 
-        res.status(StatusCodes.OK).json({
-            success: true,
-            message: "Tìm kiếm món ăn theo địa chỉ thành công",
-            data: result.items,
-            meta: result.meta
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+//         res.status(StatusCodes.OK).json({
+//             success: true,
+//             message: "Tìm kiếm món ăn theo địa chỉ thành công",
+//             data: result.items,
+//             meta: result.meta
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
