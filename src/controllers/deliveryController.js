@@ -1,7 +1,6 @@
 import { deliveryService } from '../services/deliveryService.js';
 import { StatusCodes } from 'http-status-codes';
-import { io } from '../../index.js'; 
-
+import { getIO } from '../utils/socket.js';
 const createNewDelivery = async (req, res, next) => {
   try {
     // Validate req.body ở đây (dùng Joi/Zod) trước khi gọi service
@@ -40,6 +39,7 @@ const acceptDelivery = async (req, res, next) => {
     
     // Gọi service
     const result = await deliveryService.assignShipper(id, shipperId);
+    const io = getIO();
 
     // TODO: Emit Socket cho khách hàng biết "Tài xế Nguyễn Văn A đã nhận đơn"
     // _io.to(result.orderId).emit('DELIVERY_UPDATED', result);
@@ -64,8 +64,8 @@ const updateDeliveryStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, location } = req.body; // location: { lat, lng }
-    // const userId = req.user._id;
-    const { userId } = req.body; // Demo tạm
+    const userId = req.user._id;
+    const io = getIO();
 
     const result = await deliveryService.updateStatus(id, status, userId, location);
 

@@ -8,10 +8,10 @@ import Delivery from "../models/delivery.js";
 import { processPaymentDeductionService } from "./walletServices.js";
 import { getDistance, getCoordinates } from "./goongServices.js";
 import { calculateShippingFee } from "./shippingServices.js";
-
+import { findNearbyShippers } from "./shipperServices.js";
+import { getIO } from "../utils/socket.js";
 
 // 1. Tạo đơn hàng
-export const createOrderService = async (data) => {
     // userLocation bây giờ có thể chỉ chứa { address: "..." }
     const { customerId, shopId, items, paymentMethod, userLocation } = data;
 
@@ -156,7 +156,33 @@ export const createOrderService = async (data) => {
         await newOrder.save({ session });
 
         await session.commitTransaction();
-        
+
+        try {
+            const shopLocation = newDelivery.pickup.location.coordinates;
+            // Tìm shipper trong 5km
+            const availableShippers = await findNearbyShippers(shopLocation, 5000); 
+            console.log(`📡 Order ${newOrder._id}: Tìm thấy ${availableShippers.length} tài xế.`);
+
+            if (availableShippers.length > 0) {
+                const io = getIO();
+                availableShippers.forEach(shipper => {
+                    const userId = shipper.user._id.toString();
+                    
+                    io.to(userId).emit('NEW_JOB', {
+                        deliveryId: newDelivery._id,
+                        pickup: newDelivery.pickup.address,
+                        dropoff: newDelivery.dropoff.address,
+                        fee: newDelivery.shippingFee,
+                        distance: newDelivery.distance
+                    });
+                });
+            }
+        } catch (socketError) {
+            // Nếu lỗi socket/tìm shipper thì chỉ log thôi, KHÔNG throw error
+            // vì đơn hàng đã tạo thành công rồi.
+            console.error("⚠️ Lỗi điều phối shipper:", socketError.message);
+        }
+
         return { 
             ...newOrder.toObject(), 
             distance: realDistance, 
