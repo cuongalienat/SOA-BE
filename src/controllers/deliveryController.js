@@ -1,5 +1,6 @@
 import { deliveryService } from '../services/deliveryService.js';
 import { StatusCodes } from 'http-status-codes';
+import { io } from '../../index.js'; 
 
 const createNewDelivery = async (req, res, next) => {
   try {
@@ -43,6 +44,12 @@ const acceptDelivery = async (req, res, next) => {
     // TODO: Emit Socket cho khách hàng biết "Tài xế Nguyễn Văn A đã nhận đơn"
     // _io.to(result.orderId).emit('DELIVERY_UPDATED', result);
 
+    io.to(result.orderId.toString()).emit('ORDER_STATUS_UPDATE', {
+        status: 'Confirmed',
+        shipperId: shipperId,
+        message: 'Tài xế đã nhận đơn và đang đến quán!'
+    });
+
     res.status(StatusCodes.OK).json({
       success: true,
       message: 'Nhận đơn thành công!',
@@ -63,6 +70,17 @@ const updateDeliveryStatus = async (req, res, next) => {
     const result = await deliveryService.updateStatus(id, status, userId, location);
 
     // TODO: Tại đây Emit Socket.io báo cho khách hàng biết
+    // 🔥 SOCKET REALTIME:
+    // 1. Nếu thay đổi trạng thái (VD: Đã lấy món) -> Báo khách cập nhật UI
+    io.to(result.orderId.toString()).emit('ORDER_STATUS_UPDATE', {
+        status: result.status, // PICKING_UP, DELIVERING...
+        message: 'Trạng thái đơn hàng đã thay đổi'
+    });
+
+    // 2. Nếu có tọa độ mới -> Báo khách để vẽ lại icon xe máy
+    if (location) {
+        io.to(result.orderId.toString()).emit('SHIPPER_MOVED', location);
+    }
 
     res.status(StatusCodes.OK).json({
       success: true,
@@ -74,9 +92,33 @@ const updateDeliveryStatus = async (req, res, next) => {
   }
 };
 
+const getCurrentJob = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const delivery = await deliveryService.getCurrentDelivery(userId);
+
+        if (!delivery) {
+            return res.status(StatusCodes.OK).json({
+                success: true,
+                message: "Bạn đang rảnh, chưa nhận đơn nào.",
+                data: null
+            });
+        }
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: "Đang có đơn hàng cần xử lý!",
+            data: delivery
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const deliveryController = {
   createNewDelivery,
   getDeliveryDetails,
   acceptDelivery,
-  updateDeliveryStatus
+  updateDeliveryStatus,
+  getCurrentJob
 };

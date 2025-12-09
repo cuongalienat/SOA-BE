@@ -8,6 +8,8 @@ import shopRoutes from './shopRoutes.js';
 import deliveryRoutes from './deliveryRoutes.js';
 import ratingRoutes from './ratingRoutes.js';
 import walletRoutes from './walletRoutes.js';
+import shippingRoutes from './shippingRoutes.js';
+import shipperRoutes from './shipperRoutes.js'
 
 const Router = express.Router();
 
@@ -26,6 +28,8 @@ Router.use("/shops", shopRoutes);
 Router.use("/items", itemRoutes);
 Router.use("/deliveries", deliveryRoutes)
 Router.use("/ratings", ratingRoutes);
-Router.use("/wallets", walletRoutes);
+Router.use("/shippings", shippingRoutes);
+Router.use("/shippers", shipperRoutes)
+// Router.use("/wallets", walletRoutes);
 
 export const APIs_v1 = Router;

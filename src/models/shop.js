@@ -41,9 +41,20 @@ const shopSchema = new mongoose.Schema({
     }],
 
     isOpen: { type: Boolean, default: true },
-    tags: [{ type: String }] 
+    tags: [{ type: String }],
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'], 
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number], // [Longitude, Latitude] - Lưu ý: Kinh độ trước, Vĩ độ sau
+            default: [0, 0]
+        }
+    },
 
 }, { timestamps: true });
-
+shopSchema.index({ location: '2dsphere' });
 const Shop = mongoose.model('Shop', shopSchema);
 export default Shop;

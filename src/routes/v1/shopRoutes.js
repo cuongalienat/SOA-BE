@@ -1,5 +1,5 @@
 import express from "express";
-import { authMiddleware, isRestaurant } from "../../middlewares/authMiddlewares.js"; // isShopOwner là middleware mới cần tạo
+import { authMiddleware, isRestaurant, isShopOwner } from "../../middlewares/authMiddlewares.js"; // isShopOwner là middleware mới cần tạo
 import {
     createShop,
     getMyShop,
