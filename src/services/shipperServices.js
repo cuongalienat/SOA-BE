@@ -2,6 +2,8 @@ import Shipper from '../models/shipper.js';
 import ApiError from '../utils/ApiError.js';
 import { StatusCodes } from 'http-status-codes';
 import User from '../models/user.js';
+import Delivery from '../models/delivery.js';
+import { getIO } from '../utils/socket.js';
 
 // 1. Đăng ký làm tài xế
 const registerShipper = async ({ userId, vehicleType, licensePlate }) => {
@@ -41,9 +43,10 @@ const registerShipper = async ({ userId, vehicleType, licensePlate }) => {
 // 2. Bật/Tắt trạng thái (Online/Offline)
 const updateStatus = async (userId, status) => {
     if (!['ONLINE', 'OFFLINE'].includes(status)) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, "Trạng thái không hợp lệ (chỉ ONLINE/OFFLINE)");
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Trạng thái không hợp lệ");
     }
 
+    // 1. Cập nhật trạng thái Shipper
     const shipper = await Shipper.findOneAndUpdate(
         { user: userId },
         { status: status },
@@ -53,6 +56,50 @@ const updateStatus = async (userId, status) => {
     if (!shipper) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Hồ sơ tài xế không tồn tại.");
     }
+
+    // ============================================================
+    // 🚀 LOGIC MỚI: QUÉT ĐƠN HÀNG TỒN ĐỌNG (BACKLOG SCAN)
+    // ============================================================
+    if (status === 'ONLINE') {
+        try {
+            console.log(`📡 Shipper ${userId} vừa Online. Đang quét đơn quanh đây...`);
+
+            // Tìm các đơn hàng đang SEARCHING trong vòng 5km
+            const pendingDeliveries = await Delivery.find({
+                status: 'SEARCHING',
+                'pickup.location': {
+                    $near: {
+                        $geometry: {
+                            type: "Point",
+                            coordinates: shipper.currentLocation.coordinates
+                        },
+                        $maxDistance: 5000 // 5km
+                    }
+                }
+            });
+
+            console.log(`📦 Tìm thấy ${pendingDeliveries.length} đơn hàng chờ.`);
+
+            if (pendingDeliveries.length > 0) {
+                const io = getIO();
+                
+                // Bắn từng đơn hàng cho Shipper này
+                pendingDeliveries.forEach(delivery => {
+                    io.to(userId.toString()).emit('NEW_JOB', {
+                        deliveryId: delivery._id,
+                        pickup: delivery.pickup.address,
+                        dropoff: delivery.dropoff.address,
+                        fee: delivery.shippingFee,
+                        distance: delivery.distance
+                    });
+                });
+            }
+        } catch (error) {
+            console.error("⚠️ Lỗi quét đơn tồn đọng:", error);
+            // Không throw error ở đây để tránh làm lỗi API updateStatus chính
+        }
+    }
+    // ============================================================
 
     return shipper;
 };
