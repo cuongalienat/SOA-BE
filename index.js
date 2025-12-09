@@ -6,21 +6,14 @@ import connectDB from './src/config/db.js'
 import { APIs_v1 } from './src/routes/v1/index.js'
 import { errorHandlingMiddleware } from './src/middlewares/errorHandlingMiddleware.js'
 import { morganMiddleware } from './src/config/morgan.js';
-import { Server } from 'socket.io' 
 import http from 'http'
+import { initSocket } from './src/utils/socket.js'
 
 
 const app = express()
 const server = http.createServer(app);
 
-const io = new Server(server, {
-    cors: {
-        // Cho phép Frontend kết nối (trong dev để * cho tiện, production nên set domain cụ thể)
-        origin: "*", 
-        methods: ["GET", "POST"]
-    }
-});
-
+const io = initSocket(server);
 
 // Morgan 
 app.use(morganMiddleware);
@@ -36,22 +29,25 @@ app.use((req, res, next) => {
 io.on('connection', (socket) => {
     console.log(`⚡ User Connected: ${socket.id}`);
 
-    // A. Shipper/Khách join vào phòng của Đơn hàng (orderId)
+    // Logic cũ: Join room đơn hàng
     socket.on('JOIN_ORDER_ROOM', (orderId) => {
         socket.join(orderId);
-        console.log(`User ${socket.id} joined room: ${orderId}`);
     });
 
-    // B. Shipper gửi tọa độ -> Server bắn lại cho Khách
+    // Logic cũ: Cập nhật vị trí xe
     socket.on('UPDATE_LOCATION', (data) => {
-        // data: { orderId, lat, lng }
         const { orderId, lat, lng } = data;
-        
-        // Gửi sự kiện 'SHIPPER_MOVED' cho tất cả người trong phòng orderId
         io.to(orderId).emit('SHIPPER_MOVED', { lat, lng });
+    });
+    
+    // 👇 THÊM LOGIC MỚI: Để tìm Shipper
+    // Khi shipper login, frontend shipper sẽ gửi userId lên để server biết socket.id nào là của ông nào
+    const userId = socket.handshake.query.userId;
+    if (userId) {
+        socket.join(userId); // Shipper vào phòng riêng của mình
+    }
         
         // console.log(`Shipper moved in ${orderId}: [${lat}, ${lng}]`);
-    });
 
     //C. Noti nhận đơn
     socket.on('REGISTER_SOCKET', (data) => {
@@ -89,5 +85,4 @@ server.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
     console.log(`🚀 Server & Socket running on http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}`)
 })
 
-//export { io };
 
