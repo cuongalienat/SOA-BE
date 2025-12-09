@@ -95,21 +95,23 @@ export const getRestaurantOrders = async (req, res, next) => {
 
 // 5. Cập nhật trạng thái đơn hàng
 export const updateStatus = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const currentUser = req.user;
+    const io = req.io; // Lấy socket từ middleware
 
-        // Gọi service cập nhật
-        const updatedOrder = await orderService.updateOrderStatusService(id, status);
+    // Controller chỉ việc gọi Service và truyền tham số (id, status, io)
+    const updatedOrder = await orderService.updateOrderStatusService(id, status, currentUser,io);
 
-        res.status(200).json({
-            success: true,
-            message: "Cập nhật trạng thái đơn hàng thành công",
-            data: updatedOrder
-        });
-    } catch (error) {
-        next(error);
-    }
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Cập nhật trạng thái thành công",
+      data: updatedOrder
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // 6. Hủy đơn hàng (Dành cho khách hàng)
@@ -117,9 +119,16 @@ export const cancelOrder = async (req, res, next) => {
     try {
         const { id } = req.params;
         const userId = req.user._id.toString();
-
+        const io = req.io;
         const canceledOrder = await orderService.cancelOrderService(id, userId);
 
+        if (io && canceledOrder.shop) {
+             io.to(`shop_${canceledOrder.shop}`).emit('ORDER_CANCELLED', {
+                 orderId: id,
+                 msg: "Khách hàng đã hủy đơn!"
+             });
+        }
+        
         res.status(200).json({
             success: true,
             message: "Hủy đơn hàng thành công",

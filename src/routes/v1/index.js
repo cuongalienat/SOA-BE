@@ -8,6 +8,8 @@ import shopRoutes from "./shopRoutes.js";
 import deliveryRoutes from "./deliveryRoutes.js";
 import ratingRoutes from "./ratingRoutes.js";
 import walletRoutes from "./walletRoutes.js";
+import shippingRoutes from "./shippingRoutes.js";
+import shipperRoutes from "./shipperRoutes.js";
 
 const Router = express.Router();
 

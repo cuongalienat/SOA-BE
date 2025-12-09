@@ -27,8 +27,8 @@ router.patch("/:id/cancel", authMiddleware, cancelOrder);
 // 4. Xem danh sách đơn hàng của quán (Cần đăng nhập + Role Restaurant)
 router.get("/manage", authMiddleware, isRestaurant, getRestaurantOrders);
 
-// 5. Cập nhật trạng thái đơn (Nhận đơn, Giao hàng...)
-router.patch("/:id/status", authMiddleware, isShipper, updateStatus);
+// 5. Cập nhật trạng thái đơn (Nhận đơn, Giao hàng...) 
+router.patch("/:id/status", authMiddleware, updateStatus); // phân quyền bên trong controller
 
 // 6. Xem chi tiết đơn hàng 
 router.get("/:id", authMiddleware, getOrderDetails);
