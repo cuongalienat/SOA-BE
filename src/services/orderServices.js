@@ -8,6 +8,7 @@ import Delivery from "../models/delivery.js";
 import { processPaymentDeductionService } from "./walletServices.js";
 import { getDistance, getCoordinates } from "./goongServices.js";
 import { calculateShippingFee } from "./shippingServices.js";
+import { deliveryService } from "./deliveryService.js";
 
 
 // 1. Tạo đơn hàng
@@ -99,36 +100,36 @@ export const createOrderService = async (data) => {
 
         await newOrder.save({ session });
 
-        // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
-        const newDelivery = new Delivery({
-            orderId: newOrder._id,
-            pickup: {
-                name: dbShop.name,
-                address: dbShop.address,
-                phones: dbShop.phones || [],
-                location: {
-                    type: 'Point',
-                    coordinates: dbShop.location.coordinates 
-                }
-            },
-            dropoff: {
-                name: userLocation.name || "Khách hàng", 
-                address: userLocation.address,
-                phone: userLocation.phone,
-                location: {
-                    type: 'Point',
-                    // 👇 Lưu ý: MongoDB GeoJSON lưu [Lng, Lat] (Lng trước)
-                    coordinates: [finalLng, finalLat] 
-                }
-            },
-            distance: realDistance,
-            shippingFee: realShippingFee,
-            status: 'SEARCHING',
-            trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
-        });
+        //  // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
+        // const newDelivery = new Delivery({
+        //     orderId: newOrder._id,
+        //     pickup: {
+        //         name: dbShop.name,
+        //         address: dbShop.address,
+        //         phones: dbShop.phones || [],
+        //         location: {
+        //             type: 'Point',
+        //             coordinates: dbShop.location.coordinates 
+        //         }
+        //     },
+        //     dropoff: {
+        //         name: userLocation.name || "Khách hàng", 
+        //         address: userLocation.address,
+        //         phone: userLocation.phone,
+        //         location: {
+        //             type: 'Point',
+        //             // 👇 Lưu ý: MongoDB GeoJSON lưu [Lng, Lat] (Lng trước)
+        //             coordinates: [finalLng, finalLat] 
+        //         }
+        //     },
+        //     distance: realDistance,
+        //     shippingFee: realShippingFee,
+        //     status: 'SEARCHING',
+        //     trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
+        // });
 
-        await newDelivery.save({ session });
-        newOrder.delivery = newDelivery._id;
+        // await newDelivery.save({ session });
+        // newOrder.delivery = newDelivery._id;
 
         // --- 6. XỬ LÝ VÍ (NẾU CÓ) ---
         let transactionRef = null;
@@ -187,24 +188,78 @@ export const getOrderByIdService = async (orderId) => {
 };
 
 // 3. Cập nhật trạng thái
-export const updateOrderStatusService = async (orderId, newStatus) => {
-    const allowedStatuses = ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Canceled'];
+const PERMISSIONS = {
+    // Role 'restaurant' chỉ được phép set các trạng thái này
+    restaurant: ['confirmed', 'preparing', 'canceled'],
+    
+    // Role 'driver' (shipper) chỉ được phép set các trạng thái này
+    driver: ['picking_up', 'out_for_delivery', 'delivered', 'failed']
+};
 
-    if (!allowedStatuses.includes(newStatus)) {
-        throw new ApiError(400, 'Trạng thái không hợp lệ.');
-    }
-
+export const updateOrderStatusService = async (orderId, newStatus, currentUser, io) => {
+    // 1. Chuẩn hóa status đầu vào
+    const normalizedStatus = newStatus.toLowerCase();
+    
+    // 2. Tìm đơn hàng (KHÔNG dùng findByIdAndUpdate ngay, vì cần validate trước)
     const order = await Order.findById(orderId);
     if (!order) {
         throw new ApiError(404, 'Đơn hàng không tồn tại.');
     }
 
-    if (order.status === 'Canceled' && newStatus !== 'Canceled') {
+    // 3. CHECK QUYỀN (Quan trọng nhất)
+    const userRole = currentUser.role; // Ví dụ: 'restaurant' hoặc 'driver'
+
+    // Kiểm tra xem Role này có được phép set status này không?
+    const allowedStatuses = PERMISSIONS[userRole];
+    
+    if (!allowedStatuses || !allowedStatuses.includes(normalizedStatus)) {
+        throw new ApiError(403, `Bạn không có quyền chuyển trạng thái đơn hàng sang "${newStatus}".`);
+    }
+
+    // 4. Validate Logic nghiệp vụ cũ (Đơn hủy không được sửa)
+    if (order.status === 'canceled' && normalizedStatus !== 'canceled') {
         throw new ApiError(400, 'Không thể cập nhật đơn hàng đã bị hủy.');
     }
 
-    order.status = newStatus;
+    // --- LOGIC RIÊNG CỦA TỪNG TRẠNG THÁI ---
+
+    // CASE A: SHOP chuyển sang 'preparing' -> Tìm tài xế
+    if (normalizedStatus === 'preparing') {
+        // Kiểm tra Idempotency (Tránh tạo trùng delivery)
+        if (order.delivery) {
+            console.warn(`⚠️ Đơn ${orderId} đã có Delivery, bỏ qua tạo mới.`);
+        } else {
+            // Populate để lấy data cho Delivery Service
+            await order.populate('shop user');
+            
+            // Gọi service tạo delivery & bắn socket tìm ship
+            const delivery = await deliveryService.createDeliveryForOrder(order, io);
+            
+            // Link ngược delivery vào order
+            order.delivery = delivery._id;
+        }
+    }
+
+    // CASE B: SHIPPER nhận đơn -> update delivery status
+    if (normalizedStatus === 'picking_up' || normalizedStatus === 'out_for_delivery') {
+        // Logic cập nhật bảng Delivery (nếu cần)
+        // await deliveryService.updateDeliveryStatus(order.delivery, normalizedStatus);
+    }
+
+    // 5. Lưu thay đổi vào DB
+    order.status = normalizedStatus;
     await order.save();
+
+    // 6. Bắn Socket thông báo cho User (Khách hàng)
+    if (io && order.user) {
+        // Lưu ý: order.user có thể là object (do populate trên) hoặc id
+        const userId = order.user._id || order.user; 
+        io.to(`user_${userId}`).emit('ORDER_UPDATE', { 
+            status: normalizedStatus, 
+            msg: `Đơn hàng của bạn đã chuyển sang: ${normalizedStatus}` 
+        });
+    }
+
     return order;
 };
 

@@ -89,6 +89,12 @@ const orderSchema = new mongoose.Schema({
         ref: 'Rating',
         default: null,
     },
+    shippingAddress: { type: String, required: true }, // Đ/c chữ: "123 Giải Phóng..."
+    contactPhone: { type: String, required: true },    // SĐT người nhận
+    customerLocation: {                                // Tọa độ người nhận
+        lat: { type: Number, required: true },
+        lng: { type: Number, required: true }
+    },
 }, { timestamps: true })
 
 const Order = mongoose.model("Order", orderSchema)
