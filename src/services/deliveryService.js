@@ -3,6 +3,7 @@ import ApiError from '../utils/ApiError.js';
 import { StatusCodes } from 'http-status-codes';
 import OrderModel from '../models/order.js';
 import Shipper from '../models/shipper.js';
+import { calculateDistance } from '../utils/mapUtils.js';
 
 // 1. Tạo chuyến giao hàng mới (Thường được gọi khi Order vừa tạo xong)
 const createDelivery = async (deliveryData) => {
@@ -163,10 +164,58 @@ const getCurrentDelivery = async (userId) => {
     return activeDelivery; // Có thể trả về null nếu không có đơn nào
 };
 
+// --- HÀM MỚI: Xử lý logic tạo Delivery từ Order ---
+const createDeliveryForOrder = async (fullOrder, io) => {
+  const shop = fullOrder.shop;
+  const user = fullOrder.user; // Lấy user populated
+  
+  // Chuẩn bị tọa độ (Đảo ngược [Lng, Lat] thành "Lat,Lng" cho Goong API)
+  const originStr = `${shop.location.coordinates[1]},${shop.location.coordinates[0]}`;
+  const destStr = `${fullOrder.customerLocation.lat},${fullOrder.customerLocation.lng}`;
+
+  // Tính khoảng cách
+  const realDistance = await calculateDistance(originStr, destStr);
+
+  const newDelivery = await DeliveryModel.create({
+    orderId: fullOrder._id,
+    pickup: {
+      name: shop.name,
+      address: shop.address,
+      phones: shop.phones,
+      location: shop.location
+    },
+    dropoff: {
+      name: user?.name || "Khách hàng",
+      address: fullOrder.shippingAddress, // Lấy từ Order đã lưu ở bước CreateOrder
+      phone: fullOrder.contactPhone,
+      location: { 
+        type: 'Point', 
+        coordinates: [fullOrder.customerLocation.lng, fullOrder.customerLocation.lat] 
+      }
+    },
+    distance: realDistance,
+    shippingFee: fullOrder.shippingFee,
+    status: 'SEARCHING'
+  });
+
+  if (io) {
+    io.to('SHIPPERS_NEARBY').emit('NEW_ORDER_AVAILABLE', {
+      deliveryId: newDelivery._id,
+      shopName: shop.name,
+      shopAddress: shop.address,
+      distance: (realDistance / 1000).toFixed(1) + ' km',
+      shippingFee: newDelivery.shippingFee
+    });
+  }
+
+  return newDelivery;
+};
+
 export const deliveryService = {
   createDelivery,
   getDeliveryById,
   assignShipper,
   updateStatus,
-  getCurrentDelivery
+  getCurrentDelivery,
+  createDeliveryForOrder
 };
