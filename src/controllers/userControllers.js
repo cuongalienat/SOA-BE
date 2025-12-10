@@ -1,4 +1,4 @@
-import { getUserDataService, updateUserPhoneService, updateUserService, deleteUserService, promoteUserService } from "../services/userServices.js";
+import { getUserDataService, updateUserService, deleteUserService, promoteUserService } from "../services/userServices.js";
 import { StatusCodes } from "http-status-codes";
 export const getUserData = async (req, res, next) => {
     try {
@@ -12,6 +12,7 @@ export const getUserData = async (req, res, next) => {
                 email: user.email,
                 age: user.age,
                 phone: user.phone,
+                address: user.address,
             }
         });
     } catch (error) {
@@ -19,44 +20,22 @@ export const getUserData = async (req, res, next) => {
     }
 }
 
-export const updateUserPhone = async (req, res, next) => {
-    try {
-        const { username, phone } = req.body;
-
-        if (!username || !phone) {
-            return res.status(400).json({ message: "username and phone are required" });
-        }
-
-        const { user } = await updateUserPhoneService(username, phone);
-
-        res.status(200).json({
-            message: "Phone updated successfully",
-            user: {
-                username: user.username,
-                phone: user.phone,
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
 
 export const updateUser = async (req, res, next) => {
     try {
-        const { username, password, email, age, phone } = req.body;
+        const { username, phone, address } = req.body;
 
-        if (!username || !password || !email || !age || !phone) {
+        if (!username || !phone || !address) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        const { user } = await updateUserService(username, { password, email, age, phone });
+        const { user } = await updateUserService(username, { phone, address });
 
         res.status(200).json({
             message: "User updated successfully",
             user: {
-                email: user.email,
-                age: user.age,
-                phone: user.phone
+                phone: user.phone,
+                address: user.address,
             }
         });
     } catch (error) {

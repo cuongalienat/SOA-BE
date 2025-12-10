@@ -26,7 +26,7 @@ export const getShopByOwnerService = async (ownerId) => {
     if (!shops || shops.length === 0) {
         throw new ApiError(StatusCodes.NOT_FOUND, "User has no shops");
     }
-    
+
     return shops;
 };
 
@@ -58,9 +58,9 @@ export const updateShopStatusService = async (ownerId, isOpen) => {
 
 // Hàm lấy danh sách tất cả các quán để hiển thị trang chủ
 export const getAllShopsService = async (options = {}) => {
-    const page = parseInt(options.page) || 1; 
-    const limit = parseInt(options.limit) || 10; 
-    const skip = (page - 1) * limit; 
+    const page = parseInt(options.page) || 1;
+    const limit = parseInt(options.limit) || 10;
+    const skip = (page - 1) * limit;
     const queryConditions = { isOpen: true }; // Chỉ lấy các shop đang mở cửa
 
     const shops = await Shop.find(queryConditions)
@@ -93,13 +93,13 @@ export const getShopDetailService = async (shopId) => {
     // BƯỚC 2: Lấy danh sách Category (Sắp xếp theo thứ tự hiển thị)
     // lean() giúp query nhanh hơn, trả về plain object thay vì mongoose document
     const categories = await Category.find({ shopId: shopId }).sort({ displayOrder: 1 }).lean();
-    
+
     // BƯỚC 3: Lấy toàn bộ Item đang bán
     const items = await Item.find({ shopId: shopId, isAvailable: true }).lean();
 
     // BƯỚC 4: Ghép Item vào Category (Mapping in Memory - Tối ưu hơn gọi DB nhiều lần)
     const menu = categories.map(category => {
-        const itemsByCategory = items.filter(item => 
+        const itemsByCategory = items.filter(item =>
             // So sánh String của ID để tránh lỗi objectId
             item.categoryId && item.categoryId.toString() === category._id.toString()
         );
@@ -126,4 +126,12 @@ export const getShopDetailService = async (shopId) => {
         shop,
         menu
     };
+};
+
+export const getShopByIDService = async (shopId) => {
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
+    }
+    return shop;
 };
