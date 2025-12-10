@@ -8,6 +8,7 @@ import Delivery from "../models/delivery.js";
 import { processPaymentDeductionService } from "./walletServices.js";
 import { getDistance, getCoordinates } from "./goongServices.js";
 import { calculateShippingFee } from "./shippingServices.js";
+import User from "../models/user.js";
 import { findNearbyShippers } from "./shipperServices.js";
 import { getIO } from "../utils/socket.js";
 import { deliveryService } from "./deliveryService.js";
@@ -16,7 +17,7 @@ import { deliveryService } from "./deliveryService.js";
 // 1. Tạo đơn hàng
 export const createOrderService = async (data) => {
     // userLocation bây giờ có thể chỉ chứa { address: "..." }
-    const { customerId, shopId, items, paymentMethod, userLocation } = data;
+    const { userId, shopId, items, paymentMethod, userLocation } = data;
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -26,16 +27,17 @@ export const createOrderService = async (data) => {
         // Nếu thiếu lat/lng, Backend tự đi tìm
         let finalLat = userLocation.lat;
         let finalLng = userLocation.lng;
-
+        console.log("data", data);
+        console.log("📍 Tọa độ:", finalLat, finalLng);
         if (!finalLat || !finalLng) {
             console.log("📍 Đang tìm tọa độ cho địa chỉ:", userLocation.address);
-            
+
             if (!userLocation.address) {
                 throw new ApiError(400, "Vui lòng nhập địa chỉ giao hàng.");
             }
 
             const coords = await getCoordinates(userLocation.address);
-            
+
             if (!coords) {
                 throw new ApiError(400, "Không tìm thấy địa chỉ này trên bản đồ. Vui lòng ghi rõ hơn.");
             }
@@ -57,7 +59,7 @@ export const createOrderService = async (data) => {
         for (const itemData of items) {
             const dbItem = await Item.findById(itemData.item).session(session);
             if (!dbItem) throw new ApiError(404, `Món ${itemData.item} không tồn tại.`);
-            
+
             if (dbItem.shopId.toString() !== shopId) {
                 throw new ApiError(400, `Món '${dbItem.name}' không thuộc quán này.`);
             }
@@ -80,49 +82,51 @@ export const createOrderService = async (data) => {
         const userCoords = `${finalLat},${finalLng}`; // Lat,Lng (Dùng toạ độ vừa tìm được)
 
         const distanceData = await getDistance(shopCoords, userCoords);
-        
+
         if (!distanceData) {
             throw new ApiError(500, "Lỗi tính khoảng cách (Goong API). Kiểm tra lại Key.");
         }
 
-        const realDistance = distanceData.distanceValue; 
+        const realDistance = distanceData.distanceValue;
         const realShippingFee = calculateShippingFee(realDistance, calculatedTotalAmount);
         const finalTotal = calculatedTotalAmount + realShippingFee;
 
         // --- 4. LƯU ORDER ---
         const newOrder = new Order({
-            user: customerId,
+            user: userId,
             shop: shopId,
             items: orderItems,
             totalAmount: finalTotal,
             shippingFee: realShippingFee,
-            address: address,
+            address: userLocation.address,
             status: 'Pending',
-            payment: null 
+            payment: null
         });
 
         await newOrder.save({ session });
-
-        //  // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
+        const user = await User.findById(userId);
+        // // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
+        // console.log("user", user.phone);
+        // console.log("shop", dbShop.phones);
         // const newDelivery = new Delivery({
         //     orderId: newOrder._id,
         //     pickup: {
         //         name: dbShop.name,
         //         address: dbShop.address,
-        //         phones: dbShop.phones || [],
+        //         phone: (dbShop.phones && dbShop.phones.length > 0) ? dbShop.phones[0] : (dbShop.phone || "N/A"),
         //         location: {
         //             type: 'Point',
-        //             coordinates: dbShop.location.coordinates 
+        //             coordinates: dbShop.location.coordinates
         //         }
         //     },
         //     dropoff: {
-        //         name: userLocation.name || "Khách hàng", 
+        //         name: userLocation.name || "Khách hàng",
         //         address: userLocation.address,
-        //         phone: userLocation.phone,
+        //         phone: user.phone,
         //         location: {
         //             type: 'Point',
         //             // 👇 Lưu ý: MongoDB GeoJSON lưu [Lng, Lat] (Lng trước)
-        //             coordinates: [finalLng, finalLat] 
+        //             coordinates: [finalLng, finalLat]
         //         }
         //     },
         //     distance: realDistance,
@@ -139,7 +143,7 @@ export const createOrderService = async (data) => {
         let paymentStatus = 'Pending';
 
         if (paymentMethod === 'WALLET') {
-            const trans = await processPaymentDeductionService(customerId, finalTotal, newOrder._id, session);
+            const trans = await processPaymentDeductionService(userId, finalTotal, newOrder._id, session);
             transactionRef = trans._id;
             paymentStatus = 'Completed';
             newOrder.status = 'Confirmed';
@@ -150,7 +154,7 @@ export const createOrderService = async (data) => {
         // --- 7. TẠO PAYMENT ---
         const newPayment = await Payment.create([{
             order: newOrder._id,
-            user: customerId,
+            user: userId,
             amount: finalTotal,
             method: paymentMethod,
             status: paymentStatus,
@@ -187,11 +191,11 @@ export const createOrderService = async (data) => {
             // vì đơn hàng đã tạo thành công rồi.
             console.error("⚠️ Lỗi điều phối shipper:", socketError.message);
         }
-        
-        return { 
-            ...newOrder.toObject(), 
-            distance: realDistance, 
-            estimatedDuration: distanceData.durationText 
+
+        return {
+            ...newOrder.toObject(),
+            distance: realDistance,
+            estimatedDuration: distanceData.durationText
         };
 
     } catch (error) {
@@ -299,7 +303,7 @@ export const cancelOrderService = async (orderId, userId) => {
     try {
         const order = await Order.findById(orderId).session(session);
         if (!order) throw new ApiError(StatusCodes.NOT_FOUND, 'Đơn hàng không tồn tại.');
-        
+
         if (order.user.toString() !== userId) throw new ApiError(StatusCodes.FORBIDDEN, 'Không có quyền hủy.');
         if (order.status !== 'Pending' && order.status !== 'Confirmed') {
             throw new ApiError(StatusCodes.BAD_REQUEST, 'Không thể hủy đơn khi đã có tài xế nhận.');
@@ -310,14 +314,14 @@ export const cancelOrderService = async (orderId, userId) => {
 
         // Hủy luôn Delivery
         if (order.delivery) {
-            await Delivery.findByIdAndUpdate(order.delivery, { 
+            await Delivery.findByIdAndUpdate(order.delivery, {
                 status: 'CANCELLED',
                 $push: { trackingLogs: { status: 'CANCELLED', note: 'Khách hàng hủy đơn' } }
             }).session(session);
         }
 
         // TODO: Nếu đã trừ tiền ví thì phải hoàn tiền (Refund) ở đây
-        
+
         await session.commitTransaction();
         return order;
     } catch (error) {
@@ -336,7 +340,7 @@ export const getOrdersService = async (filter = {}, page = 1, limit = 10) => {
         .skip(skip)
         .limit(limit)
         .populate('shop', 'name image')
-        .populate('customer', 'name');
+        .populate('user', 'name');
 
     const total = await Order.countDocuments(filter);
 

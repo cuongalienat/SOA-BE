@@ -33,26 +33,26 @@ const assignShipper = async (deliveryId, shipperId) => {
   }
 
   if (shipperProfile.status === 'SHIPPING') {
-      // Check kỹ lại xem có đơn nào đang dang dở thật không?
-      const currentJob = await DeliveryModel.findOne({
-          shipperId: shipperId,
-          status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
-      });
+    // Check kỹ lại xem có đơn nào đang dang dở thật không?
+    const currentJob = await DeliveryModel.findOne({
+      shipperId: shipperId,
+      status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+    });
 
-      if (currentJob) {
-          // Nếu có đơn thật -> Chặn
-          throw new ApiError(StatusCodes.BAD_REQUEST, 'Bạn đang giao một đơn khác, không thể nhận thêm!');
-      } else {
-          // Nếu không có đơn nào -> Dữ liệu bị ảo -> Tự động Reset về ONLINE
-          console.warn(`⚠️ Phát hiện lỗi trạng thái Shipper ${shipperId}. Tự động Reset về ONLINE.`);
-          shipperProfile.status = 'ONLINE';
-          await shipperProfile.save();
-          // Code sẽ chạy tiếp xuống dưới để nhận đơn này...
-      }
+    if (currentJob) {
+      // Nếu có đơn thật -> Chặn
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Bạn đang giao một đơn khác, không thể nhận thêm!');
+    } else {
+      // Nếu không có đơn nào -> Dữ liệu bị ảo -> Tự động Reset về ONLINE
+      console.warn(`⚠️ Phát hiện lỗi trạng thái Shipper ${shipperId}. Tự động Reset về ONLINE.`);
+      shipperProfile.status = 'ONLINE';
+      await shipperProfile.save();
+      // Code sẽ chạy tiếp xuống dưới để nhận đơn này...
+    }
   }
   const updatedDelivery = await DeliveryModel.findOneAndUpdate(
-    { 
-      _id: deliveryId, 
+    {
+      _id: deliveryId,
       status: 'SEARCHING' // ĐIỀU KIỆN QUAN TRỌNG: Chỉ nhận khi đang tìm
     },
     {
@@ -69,10 +69,10 @@ const assignShipper = async (deliveryId, shipperId) => {
   }
 
   shipperProfile.status = 'SHIPPING';
-    await shipperProfile.save();
+  await shipperProfile.save();
 
-  await OrderModel.findByIdAndUpdate(updatedDelivery.orderId, { 
-      status: 'Confirmed' 
+  await OrderModel.findByIdAndUpdate(updatedDelivery.orderId, {
+    status: 'Confirmed'
   });
 
   return updatedDelivery;
@@ -89,8 +89,8 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
     'SEARCHING': ['ASSIGNED', 'CANCELLED'], // Admin hủy hoặc có người nhận
     'ASSIGNED': ['PICKING_UP', 'CANCELLED'], // Shipper hủy hoặc bắt đầu lấy hàng
     // 👇 SỬA DÒNG NÀY: Cho phép PICKING_UP update lại chính nó (cập nhật vị trí lúc đi lấy hàng)
-    'PICKING_UP': ['PICKING_UP', 'DELIVERING'], 
-      
+    'PICKING_UP': ['PICKING_UP', 'DELIVERING'],
+
     // 👇 SỬA DÒNG NÀY: Cho phép DELIVERING update lại chính nó (cập nhật vị trí lúc đi giao)
     'DELIVERING': ['DELIVERING', 'COMPLETED'],
     'COMPLETED': [], // Kết thúc
@@ -98,10 +98,10 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
   };
 
   const allowedNextStatus = validTransitions[delivery.status];
-  
+
   if (!allowedNextStatus || !allowedNextStatus.includes(newStatus)) {
     throw new ApiError(
-      StatusCodes.BAD_REQUEST, 
+      StatusCodes.BAD_REQUEST,
       `Không thể chuyển trạng thái từ ${delivery.status} sang ${newStatus}`
     );
   }
@@ -112,9 +112,9 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
     {
       $set: { status: newStatus },
       $push: {
-        trackingLogs: { 
-          status: newStatus, 
-          updatedBy: userId, 
+        trackingLogs: {
+          status: newStatus,
+          updatedBy: userId,
           location: location // location { lat, lng } sẽ được lưu nhờ sửa Schema ở bước 1
         }
       }
@@ -124,44 +124,44 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
 
   let orderStatus = '';
   switch (newStatus) {
-      case 'PICKING_UP': 
-          orderStatus = 'Preparing'; // Tài xế đang đến -> Quán đang chuẩn bị
-          break;
-      case 'DELIVERING': 
-          orderStatus = 'Out for Delivery'; // Tài xế đã lấy hàng -> Đang giao
-          break;
-      case 'COMPLETED': 
-          orderStatus = 'Delivered'; // Giao thành công
-          // TODO: Nếu thanh toán tiền mặt (Cash), cập nhật luôn paymentStatus = 'Completed'
-          break;
-      case 'CANCELLED': 
-          orderStatus = 'Canceled'; 
-          break;
+    case 'PICKING_UP':
+      orderStatus = 'Preparing'; // Tài xế đang đến -> Quán đang chuẩn bị
+      break;
+    case 'DELIVERING':
+      orderStatus = 'Out for Delivery'; // Tài xế đã lấy hàng -> Đang giao
+      break;
+    case 'COMPLETED':
+      orderStatus = 'Delivered'; // Giao thành công
+      // TODO: Nếu thanh toán tiền mặt (Cash), cập nhật luôn paymentStatus = 'Completed'
+      break;
+    case 'CANCELLED':
+      orderStatus = 'Canceled';
+      break;
   }
 
   if (orderStatus) {
-      await OrderModel.findByIdAndUpdate(delivery.orderId, { status: orderStatus });
+    await OrderModel.findByIdAndUpdate(delivery.orderId, { status: orderStatus });
   }
 
   if (newStatus === 'COMPLETED' || newStatus === 'CANCELLED') {
-      await Shipper.findOneAndUpdate(
-          { user: userId },
-          { status: 'ONLINE' } // Quay về Online để nhận đơn mới
-      );
+    await Shipper.findOneAndUpdate(
+      { user: userId },
+      { status: 'ONLINE' } // Quay về Online để nhận đơn mới
+    );
   }
 
   return updatedDelivery;
 };
 
 const getCurrentDelivery = async (userId) => {
-    // Tìm đơn nào của ông này mà chưa Xong (COMPLETED) và chưa Hủy (CANCELLED)
-    const activeDelivery = await DeliveryModel.findOne({
-        shipperId: userId,
-        status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
-    })
+  // Tìm đơn nào của ông này mà chưa Xong (COMPLETED) và chưa Hủy (CANCELLED)
+  const activeDelivery = await DeliveryModel.findOne({
+    shipperId: userId,
+    status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+  })
     .populate('orderId'); // Populate để lấy chi tiết món ăn, giá tiền bên Order
 
-    return activeDelivery; // Có thể trả về null nếu không có đơn nào
+  return activeDelivery; // Có thể trả về null nếu không có đơn nào
 };
 
 export const getNearbyDeliveries = async (userId, radius = 5000) => {

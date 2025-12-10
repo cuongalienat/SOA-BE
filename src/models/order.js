@@ -65,13 +65,13 @@ const orderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Canceled'],
+        enum: ['Pending', 'Confirmed', 'Shipping', 'Delivered', 'Canceled'],
         default: 'Pending',
         required: true,
     },
     address: {
         type: String,
-        require: true,
+        required: true,
     },
     payment: {
         type: mongoose.Schema.Types.ObjectId,
