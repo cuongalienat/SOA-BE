@@ -24,7 +24,7 @@ const DeliverySchema = new mongoose.Schema({
     name: { type: String, required: true },
     address: { type: String, required: true },
     phones: [{ type: String, required: true }],
-    location: { 
+    location: {
       type: { type: String, default: 'Point', enum: ['Point'] },
       coordinates: { type: [Number], required: true } // [Longitude, Latitude]
     }
@@ -33,9 +33,9 @@ const DeliverySchema = new mongoose.Schema({
     name: { type: String, required: true },
     address: { type: String, required: true },
     phone: { type: String, required: true },
-    location: { 
+    location: {
       type: { type: String, default: 'Point', enum: ['Point'] },
-      coordinates: { type: [Number], required: true } 
+      coordinates: { type: [Number], required: true }
     }
   },
 
@@ -48,9 +48,9 @@ const DeliverySchema = new mongoose.Schema({
     default: 'SEARCHING',
     index: true
   },
-  
+
   // Logs
-  trackingLogs: [TrackingLogSchema] 
+  trackingLogs: [TrackingLogSchema]
 }, {
   timestamps: true,
   collection: COLLECTION_NAME

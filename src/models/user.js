@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     fullName: { type: String, required: true },
     age: { type: String, required: function () { return !this.googleId } },
     phone: { type: String, required: function () { return !this.googleId } },
+    address: { type: String, default: null },
     verifyCode: { type: String, required: false },
     verifyCodeExpires: { type: Date, required: false },
     isVerified: { type: String, enum: ["yes", "no"], default: "no" },
