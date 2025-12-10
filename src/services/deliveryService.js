@@ -163,10 +163,33 @@ const getCurrentDelivery = async (userId) => {
     return activeDelivery; // Có thể trả về null nếu không có đơn nào
 };
 
+export const getNearbyDeliveries = async (userId, radius = 5000) => {
+    // 1. Lấy vị trí Shipper
+    const shipper = await Shipper.findOne({ user: userId });
+    if (!shipper) throw new ApiError(404, "Shipper not found");
+
+    // 2. Tìm đơn hàng
+    const orders = await DeliveryModel.find({
+        status: 'SEARCHING', // Đơn chưa ai nhận
+        'pickup.location': {
+            $near: {
+                $geometry: {
+                    type: "Point",
+                    coordinates: shipper.currentLocation.coordinates
+                },
+                $maxDistance: radius
+            }
+        }
+    }).sort({ createdAt: -1 }); // Mới nhất lên đầu
+
+    return orders;
+};
+
 export const deliveryService = {
   createDelivery,
   getDeliveryById,
   assignShipper,
   updateStatus,
-  getCurrentDelivery
+  getCurrentDelivery,
+  getNearbyDeliveries
 };

@@ -115,10 +115,28 @@ const getCurrentJob = async (req, res, next) => {
     }
 };
 
+const getNearbyOrders = async (req, res, next) => {
+    try {
+        const userId = req.user._id; // Lấy ID từ token của Shipper
+        
+        // Gọi service (Hàm này bạn vừa viết ở bước trước)
+        const orders = await deliveryService.getNearbyDeliveries(userId);
+        
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: "Lấy danh sách đơn hàng thành công",
+            data: orders
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const deliveryController = {
   createNewDelivery,
   getDeliveryDetails,
   acceptDelivery,
   updateDeliveryStatus,
-  getCurrentJob
+  getCurrentJob,
+  getNearbyOrders
 };
