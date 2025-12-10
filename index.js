@@ -21,11 +21,17 @@ const io = new Server(server, {
     }
 });
 
+
 // Morgan 
 app.use(morganMiddleware);
 
 app.use(express.json())
 app.use(cors(corsOptions))
+
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
 
 io.on('connection', (socket) => {
     console.log(`⚡ User Connected: ${socket.id}`);
@@ -47,6 +53,23 @@ io.on('connection', (socket) => {
         // console.log(`Shipper moved in ${orderId}: [${lat}, ${lng}]`);
     });
 
+    //C. Noti nhận đơn
+    socket.on('REGISTER_SOCKET', (data) => {
+        // data: { userId: "65a...", role: "shipper" }
+        const { userId, role } = data;
+
+        // 1. Join vào phòng riêng của user (để nhận noti cá nhân)
+        const userRoom = `user_${userId}`;
+        socket.join(userRoom);
+        // console.log(`Socket ${socket.id} joined ${userRoom}`);
+
+        // 2. Nếu là Shipper, join vào phòng chung để săn đơn
+        if (role === 'driver') {
+            socket.join('SHIPPERS_NEARBY');
+            // console.log(`Shipper ${userId} ready to receive orders`);
+        }
+    });
+
     socket.on('disconnect', () => {
         // console.log('User Disconnected', socket.id);
     });
@@ -66,5 +89,5 @@ server.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
     console.log(`🚀 Server & Socket running on http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}`)
 })
 
-export { io };
+//export { io };
 
