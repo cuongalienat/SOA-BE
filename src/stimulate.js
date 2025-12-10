@@ -1,14 +1,16 @@
 /* file: simulate_real.js */
 import axios from 'axios';
 import polyline from '@mapbox/polyline'; // Nhớ npm install ở backend folder nữa nhé
+import dotenv from "dotenv";
+dotenv.config();
 
-// 👇 CẤU HÌNH (Điền thông tin thật của bạn vào)
-const DELIVERY_ID = "693556caf3e05c312e73e3fe"; 
-const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzQwMmJmMTQxZDZmOTkwZWU3N2EzOSIsInJvbGUiOiJjdXN0b21lciIsImlhdCI6MTc2NTA0MjA5NCwiZXhwIjoxNzY1MTI4NDk0fQ.m52DMsQOlE_f9wDYuHt5Sc4dgJpDEW3nZRK5-l3qb3s"; 
-const GOONG_API_KEY = "63QnExA88BuAbVaQNU4EDxGyfjAbNZRO9Bqhh2NK";
+const DELIVERY_ID = "693815c6616393ab3748dbe5"; 
+const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzdkZmUwMDIxMTk2ZTkxYmQ5N2Y4NiIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE3NjUyNzU4OTMsImV4cCI6MTc2NTM2MjI5M30.JIoA4I0ggZZKhe5Ivta6DzGd_75yIg3enjUQc8HqjVU"; 
+const GOONG_API_KEY = process.env.GOONG_API_KEY;
 
-const START_POINT = { lat: 20.998674, lng: 105.823027 }; 
-const END_POINT = { lat: 21.028511, lng: 105.804817 };
+const START_POINT = { lat: 20.99867431900003, lng: 105.82302730300006 }; 
+const END_POINT = { lat: 21.02446410174219, lng: 105.85766831143705 };
+
 
 const runRealSimulation = async () => {
     console.log("📡 Đang lấy lộ trình thực tế từ Goong...");
@@ -27,43 +29,63 @@ const runRealSimulation = async () => {
 
         const encodedPolyline = res.data.routes[0].overview_polyline.points;
         const pathPoints = polyline.decode(encodedPolyline); 
-
         console.log(`✅ Tìm thấy lộ trình dài ${pathPoints.length} điểm. Bắt đầu chạy...`);
+
+
+        console.log("⏳ Đang chuyển trạng thái sang PICKING_UP (Đi lấy hàng)...");
+        await axios.patch(
+            `http://localhost:3000/v1/deliveries/${DELIVERY_ID}/status`,
+            {
+                status: "PICKING_UP",
+                // Giả sử lấy hàng thì đang đứng ở Shop (START_POINT)
+                location: START_POINT 
+            },
+            { headers: { Authorization: `Bearer ${TOKEN}` } }
+        );
+        console.log("🏪 Đã chuyển sang PICKING_UP. Chờ 2 giây giả vờ lấy đồ...");
+        
+        // Chờ 2 giây cho giống thật
+        await new Promise(r => setTimeout(r, 2000));
+
+        console.log("🛵 Bắt đầu đi giao (DELIVERING)...");
 
         for (let i = 0; i < pathPoints.length; i++) {
             const point = pathPoints[i]; // [lat, lng]
             
-            // Gọi API Update Status
-            await axios.patch(
-                `http://localhost:3000/v1/deliveries/${DELIVERY_ID}/status`,
-                {
-                    status: "DELIVERING", // Status giữ nguyên, chỉ update vị trí
-                    location: {
-                        lat: point[0],
-                        lng: point[1]
-                    }
-                },
-                { headers: { Authorization: `Bearer ${TOKEN}` } }
-            );
+            try {
+                await axios.patch(
+                    `http://localhost:3000/v1/deliveries/${DELIVERY_ID}/status`,
+                    {
+                        status: "DELIVERING", // Giờ chuyển sang DELIVERING là hợp lệ
+                        location: {
+                            lat: point[0],
+                            lng: point[1]
+                        }
+                    },
+                    { headers: { Authorization: `Bearer ${TOKEN}` } }
+                );
+                
+                process.stdout.write(`\r[${Math.round(((i+1)/pathPoints.length)*100)}%] 🛵 Vị trí: ${point[0]}, ${point[1]}   `);
+            } catch (err) {
+                console.log(`\n❌ Lỗi update bước ${i}:`, err.response?.data?.message || err.message);
+                if(err.response?.status === 401 || err.response?.status === 403) return;
+            }
 
-            console.log(`[${i + 1}/${pathPoints.length}] 🛵 Đang đi qua: ${point[0]}, ${point[1]}`);
-
-            // ⏳ Chờ 1 chút cho giống thật (Xe chạy nhanh hay chậm chỉnh ở đây)
-            // 500ms = Nửa giây update 1 lần (Xe chạy khá nhanh)
-            await new Promise(r => setTimeout(r, 50)); 
+            await new Promise(r => setTimeout(r, 200)); 
         }
 
-        console.log("🏁 Đã đến nơi! (Giao hàng thành công)");
+        console.log("\n🏁 Đã đến nơi! Đang hoàn tất đơn...");
         
-        // Tự động Complete luôn cho xịn
+        // Hoàn tất đơn
         await axios.patch(
             `http://localhost:3000/v1/deliveries/${DELIVERY_ID}/status`,
             { status: "COMPLETED", location: { lat: END_POINT.lat, lng: END_POINT.lng } },
             { headers: { Authorization: `Bearer ${TOKEN}` } }
         );
+        console.log("🎉 ĐƠN HÀNG HOÀN TẤT!");
 
     } catch (error) {
-        console.error("❌ Lỗi:", error.message);
+        console.error("\n❌ Lỗi chung:", error.message);
     }
 };
 
