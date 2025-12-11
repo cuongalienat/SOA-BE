@@ -18,7 +18,7 @@ const paymentSchema = new moongoose.Schema({
     },
     method: {
         type: String,
-        Enum: ['COD', 'Wallet'],
+        Enum: ['COD', 'VNPAY'],
         required: true
     },
     status: {

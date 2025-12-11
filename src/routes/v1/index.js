@@ -7,7 +7,7 @@ import itemRoutes from './itemRoutes.js';
 import shopRoutes from './shopRoutes.js';
 import deliveryRoutes from './deliveryRoutes.js';
 import ratingRoutes from './ratingRoutes.js';
-import walletRoutes from './walletRoutes.js';
+import paymentRoutes from './paymentRoutes.js';
 import shippingRoutes from './shippingRoutes.js';
 import shipperRoutes from './shipperRoutes.js'
 
@@ -31,5 +31,6 @@ Router.use("/ratings", ratingRoutes);
 Router.use("/shippings", shippingRoutes);
 Router.use("/shippers", shipperRoutes)
 // Router.use("/wallets", walletRoutes);
+Router.use("/payments", paymentRoutes);
 
 export const APIs_v1 = Router;

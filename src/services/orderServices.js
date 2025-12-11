@@ -5,7 +5,7 @@ import ApiError from "../utils/ApiError.js"; // Giả sử bạn lưu file ApiEr
 import Payment from "../models/payment.js";
 import Shop from "../models/shop.js";
 import Delivery from "../models/delivery.js";
-import { processPaymentDeductionService } from "./walletServices.js";
+// import { processPaymentDeductionService } from "./walletServices.js";
 import { getDistance, getCoordinates } from "./goongServices.js";
 import { calculateShippingFee } from "./shippingServices.js";
 import User from "../models/user.js";
@@ -109,7 +109,7 @@ export const createOrderService = async (data) => {
             pickup: {
                 name: dbShop.name,
                 address: dbShop.address,
-                phone: (dbShop.phones && dbShop.phones.length > 0) ? dbShop.phones[0] : (dbShop.phone || "N/A"),
+                phones: dbShop.phones || [],
                 location: {
                     type: 'Point',
                     coordinates: dbShop.location.coordinates
@@ -138,12 +138,12 @@ export const createOrderService = async (data) => {
         let transactionRef = null;
         let paymentStatus = 'Pending';
 
-        if (paymentMethod === 'WALLET') {
-            const trans = await processPaymentDeductionService(userId, finalTotal, newOrder._id, session);
-            transactionRef = trans._id;
-            paymentStatus = 'Completed';
-            newOrder.status = 'Confirmed';
-        }
+        // if (paymentMethod === 'WALLET') {
+        //     const trans = await processPaymentDeductionService(userId, finalTotal, newOrder._id, session);
+        //     transactionRef = trans._id;
+        //     paymentStatus = 'Completed';
+        //     newOrder.status = 'Confirmed';
+        // }
 
         await newOrder.save({ session });
 
