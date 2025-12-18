@@ -31,41 +31,50 @@ io.on('connection', (socket) => {
 
     // Logic cũ: Join room đơn hàng
     socket.on('JOIN_ORDER_ROOM', (orderId) => {
-        socket.join(orderId);
+        socket.join(`order:${orderId}`);
     });
 
+    // 👇 1. QUAN TRỌNG: Lắng nghe sự kiện Join Room chung
+    // Frontend Shop sẽ gửi: socket.emit('JOIN_ROOM', 'shop_12345')
+    // Frontend Shipper sẽ gửi: socket.emit('JOIN_ROOM', 'shipper_67890')
+    // socket.on('JOIN_ROOM', (roomName) => {
+    //     socket.join(roomName);
+    //     console.log(`Socket ${socket.id} joined room: ${roomName}`);
+    // });
+    
     // Logic cũ: Cập nhật vị trí xe
     socket.on('UPDATE_LOCATION', (data) => {
         const { orderId, lat, lng } = data;
-        io.to(orderId).emit('SHIPPER_MOVED', { lat, lng });
+        io.to(`order:${orderId}`).emit('SHIPPER_MOVED', { lat, lng });
     });
     
     // 👇 THÊM LOGIC MỚI: Để tìm Shipper
     // Khi shipper login, frontend shipper sẽ gửi userId lên để server biết socket.id nào là của ông nào
-    const userId = socket.handshake.query.userId;
+    const { userId, role, shopId } = socket.handshake.query;
     if (userId) {
-        socket.join(userId); // Shipper vào phòng riêng của mình
-    }
-        
-        // console.log(`Shipper moved in ${orderId}: [${lat}, ${lng}]`);
+      // 1. CHUẨN HÓA TÊN ROOM: Luôn dùng prefix "user:"
+      const userRoom = `user:${userId}`;
+      socket.join(userRoom);
+      console.log(`✅ User ${userId} joined room: [${userRoom}]`);
 
-    //C. Noti nhận đơn
-    socket.on('REGISTER_SOCKET', (data) => {
-        // data: { userId: "65a...", role: "shipper" }
-        const { userId, role } = data;
-
-        // 1. Join vào phòng riêng của user (để nhận noti cá nhân)
-        const userRoom = `user_${userId}`;
-        socket.join(userRoom);
-        // console.log(`Socket ${socket.id} joined ${userRoom}`);
-
-        // 2. Nếu là Shipper, join vào phòng chung để săn đơn
-        if (role === 'driver') {
-            socket.join('SHIPPERS_NEARBY');
-            // console.log(`Shipper ${userId} ready to receive orders`);
+      // 2. Phân loại Role để join room chức năng
+      if (role === 'shipper' || role === 'driver') {
+        // NẾU em muốn thông báo cho "Tất cả shipper", hãy đặt tên là 'role:shippers' (không có Id)
+        // NẾU em muốn thông báo riêng cho shipper đó -> Dùng `user:${userId}` là đủ.
+        socket.join('role:shippers');
+        console.log(`🛵 Shipper joined fleet room: [role:shippers]`);
+      }
+      
+      if (role === 'restaurant_manager') {
+        if (shopId && shopId !== 'undefined') { // Check kỹ vì query param đôi khi gửi string "undefined"
+            const shopRoom = `shop:${shopId}`;
+            socket.join(shopRoom);
+            console.log(`🏪 Shop Owner joined room: [${shopRoom}]`);
+        } else {
+            console.warn(`⚠️ Manager ${userId} connected but NO SHOP_ID provided!`);
         }
-    });
-
+    }
+    }
     socket.on('disconnect', () => {
         // console.log('User Disconnected', socket.id);
     });

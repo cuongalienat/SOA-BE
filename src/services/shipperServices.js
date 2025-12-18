@@ -60,6 +60,28 @@ const updateStatus = async (userId, status) => {
     // ============================================================
     // 🚀 LOGIC MỚI: QUÉT ĐƠN HÀNG TỒN ĐỌNG (BACKLOG SCAN)
     // ============================================================
+    if (status === 'OFFLINE') {
+        // Nếu trạng thái trong profile đang là SHIPPING -> Chặn ngay
+        if (shipper.status === 'SHIPPING') {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'Bạn đang giao hàng, không thể Offline lúc này!');
+        }
+
+        // (Kỹ hơn) Quét trong bảng Delivery xem có đơn nào chưa xong không
+        // Phòng trường hợp profile bị lệch trạng thái
+        const activeJob = await Delivery.findOne({
+        shipperId: userId,
+        status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+        });
+
+        if (activeJob) {
+        // Tự sửa lại status profile nếu nó bị sai
+        if (shipper.status !== 'SHIPPING') {
+            shipper.status = 'SHIPPING';
+            await shipper.save();
+        }
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'Bạn còn đơn hàng chưa hoàn thành!');
+        }
+    }
     if (status === 'ONLINE') {
         try {
             console.log(`📡 Shipper ${userId} vừa Online. Đang quét đơn quanh đây...`);
@@ -85,7 +107,7 @@ const updateStatus = async (userId, status) => {
                 
                 // Bắn từng đơn hàng cho Shipper này
                 pendingDeliveries.forEach(delivery => {
-                    io.to(userId.toString()).emit('NEW_JOB', {
+                    io.to(`user:${userId.toString()}`).emit('NEW_JOB', {
                         deliveryId: delivery._id,
                         pickup: delivery.pickup.address,
                         dropoff: delivery.dropoff.address,

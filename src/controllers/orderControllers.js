@@ -81,7 +81,7 @@ export const getRestaurantOrders = async (req, res, next) => {
             throw new ApiError(400, "Thiếu thông tin nhà hàng.");
         }
 
-        const filter = { restaurant: restaurantId };
+        const filter = { shop: restaurantId };
         if (status) {
             filter.status = status;
         }
@@ -128,7 +128,7 @@ export const cancelOrder = async (req, res, next) => {
         const canceledOrder = await orderService.cancelOrderService(id, userId);
 
         if (io && canceledOrder.shop) {
-             io.to(`shop_${canceledOrder.shop}`).emit('ORDER_CANCELLED', {
+             io.to(`shop:${canceledOrder.shop}`).emit('ORDER_CANCELLED', {
                  orderId: id,
                  msg: "Khách hàng đã hủy đơn!"
              });

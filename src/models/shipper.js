@@ -5,7 +5,7 @@ const shipperSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     
     // Thông tin xe (Bắt buộc với tài xế)
-    vehicleType: { type: String, enum: ['bike', 'car'], default: 'bike' },
+    vehicleType: { type: String, enum: ['bike', 'car', 'datbike'], default: 'bike' }, // datbike để  test
     licensePlate: { type: String, default: "29A-999.99" }, // Biển số
 
     // 👇 VỊ TRÍ HIỆN TẠI (Quan trọng nhất)

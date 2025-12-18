@@ -47,7 +47,7 @@ export const updateDelivery = async (req, res, next) => {
     // TRƯỜNG HỢP 1: Tài xế muốn NHẬN ĐƠN
     if (status === 'ASSIGNED') {
       // Gọi service xử lý tranh chấp (Race Condition)
-      result = await deliveryService.assignShipper(id, userId);
+      result = await deliveryService.assignShipper(id, userId, location);
       message = 'Nhận đơn hàng thành công!';
     } 
     
@@ -60,7 +60,7 @@ export const updateDelivery = async (req, res, next) => {
       
       // TODO: Emit Socket.io ở đây để báo cho khách hàng
       if (req.io) {
-          req.io.to(result.orderId.toString()).emit('DELIVERY_UPDATED', result);
+          req.io.to(`order:${result.orderId.toString()}`).emit('DELIVERY_UPDATED', result);
       }
     }
 
