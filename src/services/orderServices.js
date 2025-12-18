@@ -12,6 +12,7 @@ import User from "../models/user.js";
 import { findNearbyShippers } from "./shipperServices.js";
 import { getIO } from "../utils/socket.js";
 import { deliveryService } from "./deliveryService.js";
+import { distance } from "@turf/turf";
 
 
 // 1. Tạo đơn hàng
@@ -97,8 +98,14 @@ export const createOrderService = async (data) => {
             shop: shopId,
             items: orderItems,
             totalAmount: finalTotal,
+            distance: realDistance,
             shippingFee: realShippingFee,
             address: userLocation.address,
+            contactPhone: userLocation.phone,
+            customerLocation: {
+                lat: finalLat,
+                lng: finalLng
+            },
             status: 'Pending',
             payment: null
         });
@@ -167,30 +174,43 @@ export const createOrderService = async (data) => {
         await session.commitTransaction();
 
         try {
-            const shopLocation = newDelivery.pickup.location.coordinates;
-            // Tìm shipper trong 5km
-            const availableShippers = await findNearbyShippers(shopLocation, 5000); 
-            console.log(`📡 Order ${newOrder._id}: Tìm thấy ${availableShippers.length} tài xế.`);
-
-            if (availableShippers.length > 0) {
-                const io = getIO();
-                availableShippers.forEach(shipper => {
-                    const userId = shipper.user._id.toString();
-                    
-                    io.to(userId).emit('NEW_JOB', {
-                        deliveryId: newDelivery._id,
-                        pickup: newDelivery.pickup.address,
-                        dropoff: newDelivery.dropoff.address,
-                        fee: newDelivery.shippingFee,
-                        distance: newDelivery.distance
-                    });
-                });
-            }
+            // Lấy instance IO (Tuỳ cách bạn setup, có thể là getIO() hoặc req.app.get('socketio'))
+            const io = getIO(); 
+            
+            // Emit sự kiện mà FE Dashboard đang lắng nghe ('NEW_ORDER_TO_SHOP')
+            // Room name phải khớp với lúc FE join: `shop_${shopId}`
+            io.to(`shop:${shopId}`).emit('NEW_ORDER_TO_SHOP', newOrder);            
+            console.log(`🔔 Đã bắn thông báo đơn mới tới shop_${shopId}`);
         } catch (socketError) {
-            // Nếu lỗi socket/tìm shipper thì chỉ log thôi, KHÔNG throw error
-            // vì đơn hàng đã tạo thành công rồi.
-            console.error("⚠️ Lỗi điều phối shipper:", socketError.message);
+            // Lỗi socket không được làm fail đơn hàng -> chỉ log ra thôi
+            console.error("⚠️ Lỗi bắn socket cho Shop:", socketError.message);
         }
+
+        // try {
+        //     const shopLocation = newDelivery.pickup.location.coordinates;
+        //     // Tìm shipper trong 5km
+        //     const availableShippers = await findNearbyShippers(shopLocation, 5000); 
+        //     console.log(`📡 Order ${newOrder._id}: Tìm thấy ${availableShippers.length} tài xế.`);
+
+        //     if (availableShippers.length > 0) {
+        //         const io = getIO();
+        //         availableShippers.forEach(shipper => {
+        //             const userId = shipper.user._id.toString();
+                    
+        //             io.to(userId).emit('NEW_JOB', {
+        //                 deliveryId: newDelivery._id,
+        //                 pickup: newDelivery.pickup.address,
+        //                 dropoff: newDelivery.dropoff.address,
+        //                 fee: newDelivery.shippingFee,
+        //                 distance: newDelivery.distance
+        //             });
+        //         });
+        //     }
+        // } catch (socketError) {
+        //     // Nếu lỗi socket/tìm shipper thì chỉ log thôi, KHÔNG throw error
+        //     // vì đơn hàng đã tạo thành công rồi.
+        //     console.error("⚠️ Lỗi điều phối shipper:", socketError.message);
+        // }
 
         return {
             ...newOrder.toObject(),
@@ -223,12 +243,19 @@ export const getOrderByIdService = async (orderId) => {
 // 3. Cập nhật trạng thái
 const PERMISSIONS = {
     // Role 'restaurant' chỉ được phép set các trạng thái này
-    restaurant: ['confirmed', 'preparing', 'canceled'],
+    restaurant_manager: ['confirmed', 'preparing', 'canceled'],
     
     // Role 'driver' (shipper) chỉ được phép set các trạng thái này
     driver: ['picking_up', 'out_for_delivery', 'delivered', 'failed']
 };
-
+const STATUS_MAP = {
+    'pending': 'Pending',
+    'confirmed': 'Confirmed', 
+    'preparing': 'Preparing', // <-- Trạng thái kích hoạt tìm ship
+    'shipping': 'Shipping',
+    'delivered': 'Delivered',
+    'canceled': 'Canceled'
+};
 export const updateOrderStatusService = async (orderId, newStatus, currentUser, io) => {
     // 1. Chuẩn hóa status đầu vào
     const normalizedStatus = newStatus.toLowerCase();
@@ -280,20 +307,40 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
     }
 
     // 5. Lưu thay đổi vào DB
-    order.status = normalizedStatus;
+    order.status = STATUS_MAP[normalizedStatus];
     await order.save();
 
     // 6. Bắn Socket thông báo cho User (Khách hàng)
     if (io && order.user) {
         // Lưu ý: order.user có thể là object (do populate trên) hoặc id
         const userId = order.user._id || order.user; 
-        io.to(`user_${userId}`).emit('ORDER_UPDATE', { 
+        io.to(`user:${userId}`).emit('ORDER_UPDATE', { 
             status: normalizedStatus, 
             msg: `Đơn hàng của bạn đã chuyển sang: ${normalizedStatus}` 
         });
     }
 
-    return order;
+    return {
+        _id: order._id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        shippingFee: order.shippingFee,
+        deliveryId: order.delivery, // Chỉ cần ID delivery là đủ
+        updatedAt: order.updatedAt,
+        
+        // Nếu cần thông tin user/shop cơ bản để hiển thị lại UI
+        user: {
+            _id: order.user._id,
+            fullName: order.user.fullName,
+            phone: order.user.phone
+        },
+        shop: {
+            _id: order.shop._id,
+            name: order.shop.name,
+            address: order.shop.address,
+            location: order.shop.location
+        }
+    };
 };
 
 // 4. Hủy đơn
