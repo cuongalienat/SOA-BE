@@ -41,6 +41,7 @@ const DeliverySchema = new mongoose.Schema({
 
   // Thông số
   distance: { type: Number, required: true }, // mét
+  estimatedDuration: { type: String }, // giây
   shippingFee: { type: Number, required: true },
   status: {
     type: String,

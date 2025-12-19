@@ -123,6 +123,7 @@ export const createOrderService = async (data) => {
             },
             distance: realDistance,
             shippingFee: realShippingFee,
+            estimatedDuration: distanceData.durationText,
             status: 'SEARCHING',
             trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
         });
@@ -174,7 +175,8 @@ export const createOrderService = async (data) => {
                         pickup: newDelivery.pickup.address,
                         dropoff: newDelivery.dropoff.address,
                         fee: newDelivery.shippingFee,
-                        distance: newDelivery.distance
+                        distance: newDelivery.distance,
+                        estimatedDuration: newDelivery.estimatedDuration
                     });
                 });
             }
