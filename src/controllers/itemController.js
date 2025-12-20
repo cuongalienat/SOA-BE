@@ -5,29 +5,33 @@ import itemService from '../services/itemServices.js';
 import ApiError from '../utils/ApiError.js'; 
 
 /**
- * Lấy tất cả các món ăn (có thể lọc theo nhà hàng)
+ * GET /api/items
+ * Query params:
+ *  - shopId
+ *  - keyword (search theo tên món)
+ *  - category
+ *  - page
+ *  - limit
  */
 export const getItems = async (req, res, next) => {
   try {
-    const { name, address, page, limit } = req.query;
+    const { shopId, keyword, category, page, limit } = req.query;
 
-    let result;
+    // Controller chỉ xây filter cơ bản
+    const filter = {};
+    if (shopId) filter.shopId = shopId;
+    if (category) filter.category = category;
 
-    // Logic điều hướng (Dispatcher)
-    if (name) {
-      result = await itemService.findItemsByName(name, page, limit);
-    } else if (address) {
-      result = await itemService.findItemsByAddress(address, page, limit);
-    } else {
-        const { page, limit } = req.query;
-
-      // Nếu không có param tìm kiếm thì lấy tất cả
-      result = await itemService.findAllItems({}, page, limit, page, limit);
-    }
+    const result = await itemService.findAllItems(
+      filter,
+      keyword,
+      page,
+      limit
+    );
 
     res.status(StatusCodes.OK).json({
       success: true,
-      data: result.items || result.data, // Map tùy theo format service của bạn
+      data: result.items,
       meta: result.meta
     });
   } catch (error) {
@@ -35,26 +39,25 @@ export const getItems = async (req, res, next) => {
   }
 };
 
+
 /**
- * Lấy thông tin chi tiết một món ăn
+ * GET /api/items/:id
  */
 export const getItemById = async (req, res, next) => {
-    try {
-        const item = await itemService.findItemById(req.params.id);
+  try {
+    const item = await itemService.findItemById(req.params.id);
 
-        if (!item) {
-            // Tạo một lỗi cụ thể và để middleware xử lý
-            throw new ApiError(StatusCodes.NOT_FOUND, 'Không tìm thấy món ăn');
-        }
-
-        res.status(StatusCodes.OK).json({
-            success: true,
-            message: "Lấy chi tiết món ăn thành công",
-            data: item
-        });
-    } catch (error) {
-        next(error);
+    if (!item) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Món ăn không tồn tại');
     }
+    
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: item
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 /**
