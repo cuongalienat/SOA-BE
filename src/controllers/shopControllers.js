@@ -17,8 +17,8 @@ export const getMyShop = async (req, res, next) => {
 
         // Trả về { shops: [...] } thay vì { shop: ... }
         res.status(StatusCodes.OK).json({
-            count: shops.length, // Thêm cái này cho tiện frontend xử lý
-            shops
+            success: true,
+            data: shops[0] // Giả sử chỉ lấy shop đầu tiên nếu có nhiều shop
         });
     } catch (error) {
         next(error);
