@@ -115,21 +115,30 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, `Không thể chuyển từ ${delivery.status} sang ${newStatus}`);
   }
 
-  // Update DB
-  const updatedDelivery = await DeliveryModel.findByIdAndUpdate(
-    deliveryId,
-    {
+  const updateData = {
       $set: { status: newStatus },
       $push: {
         trackingLogs: {
           status: newStatus,
           updatedBy: userId,
-          location: location // Cập nhật vị trí hành trình
+          location: location,
+          timestamp: new Date()
         }
       }
-    },
+  };
+
+  if (location) {
+      updateData.$set.currentShipperLocation = {
+          type: 'Point',
+          coordinates: [location.lng, location.lat] // GeoJSON: [Lng, Lat]
+      };
+  }
+
+  const updatedDelivery = await DeliveryModel.findByIdAndUpdate(
+    deliveryId,
+    updateData,
     { new: true }
-  );
+  ).populate('orderId');
 
   // Đồng bộ trạng thái sang Order
   let orderStatus = '';
@@ -230,6 +239,7 @@ export const createDeliveryForOrder = async (fullOrder, io) => {
         },
         distance: finalDistance,
         shippingFee: fullOrder.shippingFee,
+        estimatedDuration: fullOrder.estimatedDuration,
         status: 'SEARCHING',
         trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
     });
@@ -245,6 +255,7 @@ export const createDeliveryForOrder = async (fullOrder, io) => {
                 const socketPayload = {
                     deliveryId: newDelivery._id,
                     shippingFee: newDelivery.shippingFee,
+                    estimatedDuration: newDelivery.estimatedDuration,
                     distance: newDelivery.distance,
                     pickup: newDelivery.pickup.address,
                     dropoff: newDelivery.dropoff.address,

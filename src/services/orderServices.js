@@ -100,6 +100,7 @@ export const createOrderService = async (data) => {
             totalAmount: finalTotal,
             distance: realDistance,
             shippingFee: realShippingFee,
+            estimatedDuration: distanceData.durationText,
             address: userLocation.address,
             contactPhone: userLocation.phone,
             customerLocation: {
