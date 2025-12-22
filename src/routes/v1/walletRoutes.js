@@ -3,6 +3,7 @@ import {
     getMyWallet,
     createWallet,
     depositMoney,
+    withdrawMoney,
     getHistory
 } from "../../controllers/walletControllers.js";
 import { authMiddleware } from "../../middlewares/authMiddlewares.js";
@@ -18,6 +19,7 @@ router.post("/", authMiddleware, createWallet);
 
 // 2. Deposit Money
 router.post("/deposit", authMiddleware, depositMoney);
+router.post("/withdraw", authMiddleware, withdrawMoney);
 router.get("/history", authMiddleware, getHistory);
 
 export default router;

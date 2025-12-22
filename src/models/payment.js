@@ -1,35 +1,32 @@
 import moongoose from 'mongoose';
 
 const paymentSchema = new moongoose.Schema({
-    // Liên kết với user thực hiện thanh toán
     user: {
         type: moongoose.Schema.Types.ObjectId,
         required: true,
         ref: 'User'
     },
-    order: {
-        type: moongoose.Schema.Types.ObjectId,
-        required: true,
-        ref: 'Order'
-    },
     amount: {
         type: Number,
         required: true
     },
-    method: {
+    type: {
         type: String,
-        Enum: ['COD', 'Wallet'],
-        required: true
+        enum: ['DEPOSIT', 'WITHDRAW'],
+        default: 'DEPOSIT'
     },
     status: {
         type: String,
-        Enum: ['Pending', 'Completed', 'Failed', 'Refunded'],
-        default: 'Pending'
+        Enum: ['PENDING', 'COMPLETED', 'FAILED'],
+        default: 'PENDING'
     },
-    transactionReference: {
-        type: moongoose.Schema.Types.ObjectId,
-        ref: 'Transaction',
-        default: null
+    balanceBefore: {
+        type: Number,
+        required: true
+    },
+    balanceAfter: {
+        type: Number,
+        required: true
     }
 }, { timestamps: true });
 

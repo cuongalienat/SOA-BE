@@ -25,7 +25,7 @@ export const getMyWallet = async (req, res, next) => {
         next(error);
     }
 };
-// Nạp tiền (Dùng để test demo)
+
 export const depositMoney = async (req, res, next) => {
     try {
         const userId = req.user._id;
@@ -35,6 +35,22 @@ export const depositMoney = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             success: true,
             message: "Nạp tiền thành công!",
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const withdrawMoney = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { amount } = req.body; // Frontend gửi lên: { amount: 500000 }
+        const result = await walletService.withdrawFromWalletService(userId, amount);
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: "Rút tiền thành công!",
             data: result
         });
     } catch (error) {

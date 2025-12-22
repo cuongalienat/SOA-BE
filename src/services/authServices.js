@@ -9,14 +9,14 @@ import { OAuth2Client } from "google-auth-library";
 
 export const createAdminService = async (adminData) => {
     const {
-        username, password, email, fullName, age, phone, role
+        username, password, email, fullName, age, phone, role, isVerified
     } = adminData;
     const admin = await User.findOne({ username });
     if (admin) {
         throw new ApiError(StatusCodes.CONFLICT, "Admin already existed");
     }
 
-    const newAdmin = User.create({ username, password, email, fullName, age, phone, role });
+    const newAdmin = User.create({ username, password, email, fullName, age, phone, role, isVerified });
     if (!newAdmin) {
         throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to create admin");
     }

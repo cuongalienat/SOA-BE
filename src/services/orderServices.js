@@ -1,14 +1,12 @@
 import Order from "../models/order.js";
 import Item from "../models/Item.js";
 import mongoose from "mongoose";
-import ApiError from "../utils/ApiError.js"; // Giả sử bạn lưu file ApiError ở folder utils
-import Payment from "../models/payment.js";
+import ApiError from "../utils/ApiError.js";
 import Shop from "../models/shop.js";
 import Delivery from "../models/delivery.js";
-import { processPaymentDeductionService } from "./walletServices.js";
-import { getDistance, getCoordinates } from "./goongServices.js";
-import { calculateShippingFee } from "./shippingServices.js";
+import { createTransactionUserToAdmin, createTransactionAdminToUser } from "./walletServices.js";
 import User from "../models/user.js";
+import { getCoordinates } from "./goongServices.js";
 import { findNearbyShippers } from "./shipperServices.js";
 import { getIO } from "../utils/socket.js";
 import { deliveryService } from "./deliveryService.js";
@@ -24,6 +22,11 @@ export const createOrderService = async (data) => {
     session.startTransaction();
 
     try {
+        const coordinates = await getCoordinates(userLocation.address);
+        console.log("🚀 ~ createOrderService ~ coordinates:", coordinates);
+        let finalLat = coordinates.lat;
+        let finalLng = coordinates.lng;
+        if (!finalLat || !finalLng) throw new ApiError(400, "Không tìm thấy toạ độ (lat, lng).");
         // --- 2. VALIDATE ITEM & SHOP ---
         let calculatedTotalAmount = 0;
         const orderItems = [];
@@ -59,6 +62,7 @@ export const createOrderService = async (data) => {
         const finalTotal = calculatedTotalAmount + shippingFee;
         const user = await User.findById(userId);
         // --- 4. LƯU ORDER ---
+        console.log("🚀 ~ createOrderService ~ finalTotal:", distanceData);
         const newOrder = new Order({
             user: userId,
             shop: shopId,
@@ -68,10 +72,6 @@ export const createOrderService = async (data) => {
             shippingFee: shippingFee,
             address: userLocation.address,
             contactPhone: user.phone,
-            customerLocation: {
-                lat: finalLat,
-                lng: finalLng
-            },
             status: 'Pending',
             payment: null
         });
@@ -110,30 +110,16 @@ export const createOrderService = async (data) => {
 
         // --- 6. XỬ LÝ VÍ(NẾU CÓ)-- -
         let transactionRef = null;
-        let paymentStatus = 'Pending';
 
-        if (paymentMethod === 'WALLET') {
-            const trans = await processPaymentDeductionService(userId, finalTotal, newOrder._id, session);
+        if (paymentMethod === 'Wallet') {
+            const trans = await createTransactionUserToAdmin(userId, finalTotal, newOrder._id, session);
             transactionRef = trans._id;
-            paymentStatus = 'Completed';
-            newOrder.status = 'Confirmed';
         }
 
         await newOrder.save({ session });
 
-        // --- 7. TẠO PAYMENT ---
-        const newPayment = await Payment.create([{
-            order: newOrder._id,
-            user: userId,
-            amount: finalTotal,
-            method: paymentMethod,
-            status: paymentStatus,
-            transactionReference: transactionRef
-        }], { session });
-
-        newOrder.payment = newPayment[0]._id;
+        newOrder.payment = transactionRef;
         await newOrder.save({ session });
-
         await session.commitTransaction();
 
         try {
@@ -177,7 +163,7 @@ export const createOrderService = async (data) => {
 
         return {
             ...newOrder.toObject(),
-            distance: realDistance,
+            distance: distanceData.distanceValue,
             estimatedDuration: distanceData.durationText
         };
 
@@ -320,6 +306,9 @@ export const cancelOrderService = async (orderId, userId) => {
         }
 
         order.status = 'Canceled';
+        if (order.payment) {
+            await createTransactionAdminToUser(order.user, order.totalAmount, order._id);
+        }
         await order.save({ session });
 
         // Hủy luôn Delivery
