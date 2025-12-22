@@ -6,13 +6,17 @@ import { StatusCodes } from "http-status-codes"; // (Tuỳ chọn) Dùng thư vi
 export const createOrder = async (req, res, next) => {
     try {
         // Lấy ID người dùng từ token (đã qua middleware auth)
-        const customerId = req.user._id;
-        console.log("Customer ID from token:", customerId);
+        const userId = req.user._id;
+        console.log("Customer ID from token:", userId);
 
         // Gọi service
+        // Đảm bảo shopId có giá trị (frontend có thể gửi restaurantId hoặc shopId)
+        const shopId = req.body.shopId || req.body.restaurantId;
+
         const newOrder = await orderService.createOrderService({
-            customerId,
-            ...req.body // restaurantId, items, shippingFee, paymentId
+            userId,
+            shopId,
+            ...req.body
         });
 
         res.status(201).json({
@@ -32,19 +36,6 @@ export const getOrderDetails = async (req, res, next) => {
         const { id } = req.params;
         const order = await orderService.getOrderByIdService(id);
 
-        // Kiểm tra quyền xem đơn hàng (Bảo mật)
-        // Chỉ Customer chủ đơn hoặc Restaurant chủ quán mới được xem
-        const userId = req.user._id.toString();
-
-        // Lưu ý: order.customer và order.restaurant là Object (do đã populate), nên cần lấy ._id
-        const customerId = order.customer._id.toString();
-        const restaurantId = order.restaurant._id.toString();
-
-        // Logic phân quyền đơn giản:
-        if (userId !== customerId && userId !== restaurantId && req.user.role !== 'admin') {
-            throw new ApiError(403, "Bạn không có quyền xem chi tiết đơn hàng này.");
-        }
-
         res.status(200).json({
             success: true,
             data: order
@@ -57,10 +48,11 @@ export const getOrderDetails = async (req, res, next) => {
 // 3. Lấy danh sách đơn hàng của Khách hàng (Lịch sử mua hàng)
 export const getOrders = async (req, res, next) => {
     try {
-        const { page, limit, status, userId } = req.params;
+        const { page, limit, status } = req.query;
+        const userId = req.user._id;
 
         // Tạo bộ lọc
-        const filter = { customer: userId };
+        const filter = { user: userId };
         if (status) {
             filter.status = status;
         }
@@ -89,7 +81,7 @@ export const getRestaurantOrders = async (req, res, next) => {
             throw new ApiError(400, "Thiếu thông tin nhà hàng.");
         }
 
-        const filter = { restaurant: restaurantId };
+        const filter = { shop: restaurantId };
         if (status) {
             filter.status = status;
         }
@@ -108,21 +100,23 @@ export const getRestaurantOrders = async (req, res, next) => {
 
 // 5. Cập nhật trạng thái đơn hàng
 export const updateStatus = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body;
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const currentUser = req.user;
+    const io = req.io; // Lấy socket từ middleware
 
-        // Gọi service cập nhật
-        const updatedOrder = await orderService.updateOrderStatusService(id, status);
+    // Controller chỉ việc gọi Service và truyền tham số (id, status, io)
+    const updatedOrder = await orderService.updateOrderStatusService(id, status, currentUser,io);
 
-        res.status(200).json({
-            success: true,
-            message: "Cập nhật trạng thái đơn hàng thành công",
-            data: updatedOrder
-        });
-    } catch (error) {
-        next(error);
-    }
+    res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Cập nhật trạng thái thành công",
+      data: updatedOrder
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // 6. Hủy đơn hàng (Dành cho khách hàng)
@@ -130,9 +124,16 @@ export const cancelOrder = async (req, res, next) => {
     try {
         const { id } = req.params;
         const userId = req.user._id.toString();
-
+        const io = req.io;
         const canceledOrder = await orderService.cancelOrderService(id, userId);
 
+        if (io && canceledOrder.shop) {
+             io.to(`shop:${canceledOrder.shop}`).emit('ORDER_CANCELLED', {
+                 orderId: id,
+                 msg: "Khách hàng đã hủy đơn!"
+             });
+        }
+        
         res.status(200).json({
             success: true,
             message: "Hủy đơn hàng thành công",

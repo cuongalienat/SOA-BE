@@ -11,6 +11,9 @@ const orderItemSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    imageUrl: {
+        type: String
+    },
     price: {
         type: Number,
         required: true,
@@ -62,8 +65,12 @@ const orderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Canceled'],
+        enum: ['Pending', 'Confirmed', 'Preparing', 'Shipping', 'Delivered', 'Canceled'],
         default: 'Pending',
+        required: true,
+    },
+    address: {
+        type: String,
         required: true,
     },
     payment: {
@@ -81,6 +88,13 @@ const orderSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Rating',
         default: null,
+    },
+    distance: { type: Number, required: true }, // Khoảng cách từ cửa hàng đến địa chỉ khách hàng (mét)
+    estimatedDuration: { type: String },
+    contactPhone: { type: String, required: true },    // SĐT người nhận
+    customerLocation: {                                // Tọa độ người nhận
+        lat: { type: Number, required: true },
+        lng: { type: Number, required: true }
     },
 }, { timestamps: true })
 
