@@ -3,6 +3,7 @@ import ApiError from "../utils/ApiError.js";
 import Category from "../models/Category.js";
 import Item from "../models/Item.js";
 import { StatusCodes } from "http-status-codes";
+import Order from "../models/order.js";
 
 export const createShopService = async (ownerId, shopData) => {
     // Kiểm tra xem user này đã có shop chưa
@@ -29,19 +30,93 @@ export const getShopByOwnerService = async (ownerId) => {
 
     return shops;
 };
-
-// Cập nhật thông tin quán
-export const updateShopService = async (ownerId, updateData) => {
-    const shop = await Shop.findOneAndUpdate(
-        { owner: ownerId },
-        updateData,
-        { new: true } // Trả về dữ liệu sau khi update
-    );
+/**
+ * Lấy dữ liệu dashboard cho shop của owner
+ */
+export const getMyShopDashboardService = async (ownerId) => {
+    const shop = await Shop.findOne({ owner: ownerId });
     if (!shop) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
     }
-    return shop;
+
+    const shopId = shop._id;
+
+    const orderStats = await Order.aggregate([
+        {
+            $match: {
+                shop: shopId,
+                status: { $ne: "Canceled" }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                revenue: { $sum: "$totalAmount" },
+                totalOrders: { $sum: 1 },
+                avgOrderValue: { $avg: "$totalAmount" }
+            }
+        }
+    ]);
+
+    const topProducts = await Order.aggregate([
+        { $match: { shop: shopId, status: "Delivered" } },
+        { $unwind: "$items" },
+        {
+            $group: {
+                _id: "$items.name",
+                quantity: { $sum: "$items.quantity" }
+            }
+        },
+        { $sort: { quantity: -1 } },
+        { $limit: 4 }
+    ]);
+
+    const recentOrders = await Order.find({ shop: shopId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("totalAmount status contactPhone");
+
+    return {
+        shop: {
+            name: shop.name,
+            isOpen: shop.isOpen
+        },
+        stats: {
+            revenue: orderStats[0]?.revenue || 0,
+            totalOrders: orderStats[0]?.totalOrders || 0,
+            avgOrderValue: Math.round(orderStats[0]?.avgOrderValue || 0),
+            rating: shop.rating?.avg || 0
+        },
+        topProducts: topProducts.map(p => ({
+            label: p._id,
+            value: p.quantity
+        })),
+        recentOrders: recentOrders.map(o => ({
+            customer: o.contactPhone,
+            total: o.totalAmount,
+            status: o.status
+        }))
+    };
 };
+
+// Cập nhật thông tin quán
+export const updateShopService = async (ownerId, updateData) => {
+  const shop = await Shop.findOneAndUpdate(
+    { owner: ownerId },
+    updateData,
+    {
+      new: true,          // 🔥 CỰC KỲ QUAN TRỌNG
+      runValidators: true // 🔒 giữ schema đúng
+    }
+  );
+
+  if (!shop) {
+    throw new ApiError(404, "Shop not found");
+  }
+
+  return shop;
+};
+
 
 // Cập nhật trạng thái mở/đóng quán
 export const updateShopStatusService = async (ownerId, isOpen) => {

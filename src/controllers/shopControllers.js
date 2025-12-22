@@ -24,37 +24,63 @@ export const getMyShop = async (req, res, next) => {
         next(error);
     }
 };
-
-export const updateMyShop = async (req, res, next) => {
+export const getMyShopDashboard = async (req, res, next) => {
     try {
-        // Cho phép cập nhật tất cả các trường mới
-        // Lưu ý: userId lấy từ token để đảm bảo chỉ sửa quán của mình
-        const updateData = req.body;
-
-        // Tốt nhất nên lọc bớt các trường nhạy cảm không cho sửa (VD: owner, rating, isVerified...)
-        const allowedUpdates = {
-            name: updateData.name,
-            address: updateData.address,
-            phone: updateData.phone,
-            coverImage: updateData.coverImage,
-            photos: updateData.photos,             // <-- Thêm cái này
-            openingHours: updateData.openingHours, // <-- Thêm cái này
-            priceRange: updateData.priceRange,     // <-- Thêm cái này
-            qrImage: updateData.qrImage
-        };
-
-        Object.keys(allowedUpdates).forEach(key => allowedUpdates[key] === undefined && delete allowedUpdates[key]);
-
-        const shop = await shopServices.updateShopService(req.user.id, allowedUpdates);
-
+        const dashboard = await shopServices.getMyShopDashboardService(req.user.id);
         res.status(StatusCodes.OK).json({
-            message: "Shop updated successfully",
-            shop
+            success: true,
+            message: "Get shop dashboard successfully",
+            data : dashboard
         });
     } catch (error) {
         next(error);
     }
 };
+
+export const updateMyShop = async (req, res, next) => {
+  try {
+    const updateData = {};
+
+    /* ===== TEXT FIELDS ===== */
+    if (req.body.name) updateData.name = req.body.name;
+    if (req.body.address) updateData.address = req.body.address;
+
+    // Phones: FE gửi phones[]
+    if (req.body["phones[]"]) {
+      updateData.phones = Array.isArray(req.body["phones[]"])
+        ? req.body["phones[]"]
+        : [req.body["phones[]"]];
+    }
+
+    /* ===== FILES FROM CLOUDINARY ===== */
+    if (req.files?.coverImage?.[0]) {
+      updateData.coverImage = req.files.coverImage[0].path; // URL string
+    }
+
+    if (req.files?.qrImage?.[0]) {
+      updateData.qrImage = req.files.qrImage[0].path;
+    }
+
+    /* ===== OPTIONAL FIELDS ===== */
+    if (req.body.photos) updateData.photos = req.body.photos;
+    if (req.body.openingHours) updateData.openingHours = req.body.openingHours;
+    if (req.body.priceRange) updateData.priceRange = req.body.priceRange;
+
+    const shop = await shopServices.updateShopService(
+      req.user.id,
+      updateData
+    );
+
+    res.status(200).json({
+      success: true,
+      data: shop,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 
 export const updateShopStatus = async (req, res, next) => {
     try {

@@ -2,6 +2,7 @@
 
 import ItemModel from '../models/Item.js';
 import ShopModel from '../models/shop.js';
+import CategoryModel from '../models/Category.js';
 import ApiError from '../utils/ApiError.js';
 import mongoose from "mongoose";
 
@@ -67,6 +68,24 @@ const findItemById = async (id) => {
  * Tạo item mới
  */
 const createNewItem = async (itemData) => {
+  // Backward compatible: FE may send `category` (name) instead of `categoryId`
+  if (!itemData.categoryId && itemData.category) {
+    const category = await CategoryModel.findOne({
+      shopId: itemData.shopId,
+      name: itemData.category
+    }).select("_id");
+
+    if (!category) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Category không tồn tại trong shop"
+      );
+    }
+
+    itemData.categoryId = category._id;
+    delete itemData.category;
+  }
+
   const shopExists = await ShopModel.exists({
     _id: itemData.shopId
   });
@@ -85,6 +104,36 @@ const createNewItem = async (itemData) => {
  * Cập nhật item
  */
 const updateItemById = async (id, updateData) => {
+  // Backward compatible: FE may send `category` (name) instead of `categoryId`
+  if (!updateData.categoryId && updateData.category) {
+    let shopId = updateData.shopId;
+    if (!shopId) {
+      const existingItem = await ItemModel.findById(id).select("shopId").lean();
+      if (!existingItem) {
+        throw new ApiError(
+          StatusCodes.NOT_FOUND,
+          'Không tìm thấy món ăn để cập nhật'
+        );
+      }
+      shopId = existingItem.shopId;
+    }
+
+    const category = await CategoryModel.findOne({
+      shopId,
+      name: updateData.category
+    }).select("_id");
+
+    if (!category) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Category không tồn tại trong shop"
+      );
+    }
+
+    updateData.categoryId = category._id;
+    delete updateData.category;
+  }
+
   const updatedItem = await ItemModel.findByIdAndUpdate(
     id,
     updateData,
