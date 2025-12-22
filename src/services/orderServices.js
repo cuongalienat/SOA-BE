@@ -18,36 +18,12 @@ import { distance } from "@turf/turf";
 // 1. Tạo đơn hàng
 export const createOrderService = async (data) => {
     // userLocation bây giờ có thể chỉ chứa { address: "..." }
-    const { userId, shopId, items, paymentMethod, userLocation } = data;
+    const { userId, shopId, items, paymentMethod, userLocation, distanceData, shippingFee } = data;
 
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-        // --- 1. XỬ LÝ ĐỊA CHỈ (GEOCODING) ---
-        // Nếu thiếu lat/lng, Backend tự đi tìm
-        let finalLat = userLocation.lat;
-        let finalLng = userLocation.lng;
-        console.log("data", data);
-        console.log("📍 Tọa độ:", finalLat, finalLng);
-        if (!finalLat || !finalLng) {
-            console.log("📍 Đang tìm tọa độ cho địa chỉ:", userLocation.address);
-
-            if (!userLocation.address) {
-                throw new ApiError(400, "Vui lòng nhập địa chỉ giao hàng.");
-            }
-
-            const coords = await getCoordinates(userLocation.address);
-
-            if (!coords) {
-                throw new ApiError(400, "Không tìm thấy địa chỉ này trên bản đồ. Vui lòng ghi rõ hơn.");
-            }
-
-            finalLat = coords.lat;
-            finalLng = coords.lng;
-            console.log("✅ Tìm thấy:", finalLat, finalLng);
-        }
-
         // --- 2. VALIDATE ITEM & SHOP ---
         let calculatedTotalAmount = 0;
         const orderItems = [];
@@ -79,29 +55,19 @@ export const createOrderService = async (data) => {
         }
 
         // --- 3. TÍNH KHOẢNG CÁCH & PHÍ SHIP ---
-        const shopCoords = `${dbShop.location.coordinates[1]},${dbShop.location.coordinates[0]}`; // Lat,Lng
-        const userCoords = `${finalLat},${finalLng}`; // Lat,Lng (Dùng toạ độ vừa tìm được)
 
-        const distanceData = await getDistance(shopCoords, userCoords);
-
-        if (!distanceData) {
-            throw new ApiError(500, "Lỗi tính khoảng cách (Goong API). Kiểm tra lại Key.");
-        }
-
-        const realDistance = distanceData.distanceValue;
-        const realShippingFee = calculateShippingFee(realDistance, calculatedTotalAmount);
-        const finalTotal = calculatedTotalAmount + realShippingFee;
-
+        const finalTotal = calculatedTotalAmount + shippingFee;
+        const user = await User.findById(userId);
         // --- 4. LƯU ORDER ---
         const newOrder = new Order({
             user: userId,
             shop: shopId,
             items: orderItems,
             totalAmount: finalTotal,
-            distance: realDistance,
-            shippingFee: realShippingFee,
+            distance: distanceData.distanceValue,
+            shippingFee: shippingFee,
             address: userLocation.address,
-            contactPhone: userLocation.phone,
+            contactPhone: user.phone,
             customerLocation: {
                 lat: finalLat,
                 lng: finalLng
@@ -111,41 +77,38 @@ export const createOrderService = async (data) => {
         });
 
         await newOrder.save({ session });
-        const user = await User.findById(userId);
-        // // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
-        // console.log("user", user.phone);
-        // console.log("shop", dbShop.phones);
-        // const newDelivery = new Delivery({
-        //     orderId: newOrder._id,
-        //     pickup: {
-        //         name: dbShop.name,
-        //         address: dbShop.address,
-        //         phone: (dbShop.phones && dbShop.phones.length > 0) ? dbShop.phones[0] : (dbShop.phone || "N/A"),
-        //         location: {
-        //             type: 'Point',
-        //             coordinates: dbShop.location.coordinates
-        //         }
-        //     },
-        //     dropoff: {
-        //         name: userLocation.name || "Khách hàng",
-        //         address: userLocation.address,
-        //         phone: user.phone,
-        //         location: {
-        //             type: 'Point',
-        //             // 👇 Lưu ý: MongoDB GeoJSON lưu [Lng, Lat] (Lng trước)
-        //             coordinates: [finalLng, finalLat]
-        //         }
-        //     },
-        //     distance: realDistance,
-        //     shippingFee: realShippingFee,
-        //     status: 'SEARCHING',
-        //     trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
-        // });
+        // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
+        const newDelivery = new Delivery({
+            orderId: newOrder._id,
+            pickup: {
+                name: dbShop.name,
+                address: dbShop.address,
+                phone: (dbShop.phones && dbShop.phones.length > 0) ? dbShop.phones[0] : (dbShop.phone || "N/A"),
+                location: {
+                    type: 'Point',
+                    coordinates: dbShop.location.coordinates
+                }
+            },
+            dropoff: {
+                name: userLocation.name || "Khách hàng",
+                address: userLocation.address,
+                phone: user.phone,
+                location: {
+                    type: 'Point',
+                    // 👇 Lưu ý: MongoDB GeoJSON lưu [Lng, Lat] (Lng trước)
+                    coordinates: [finalLng, finalLat]
+                }
+            },
+            distance: distanceData.distanceValue,
+            shippingFee: shippingFee,
+            status: 'SEARCHING',
+            trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
+        });
 
-        // await newDelivery.save({ session });
-        // newOrder.delivery = newDelivery._id;
+        await newDelivery.save({ session });
+        newOrder.delivery = newDelivery._id;
 
-        // --- 6. XỬ LÝ VÍ (NẾU CÓ) ---
+        // --- 6. XỬ LÝ VÍ(NẾU CÓ)-- -
         let transactionRef = null;
         let paymentStatus = 'Pending';
 
@@ -175,11 +138,11 @@ export const createOrderService = async (data) => {
 
         try {
             // Lấy instance IO (Tuỳ cách bạn setup, có thể là getIO() hoặc req.app.get('socketio'))
-            const io = getIO(); 
-            
+            const io = getIO();
+
             // Emit sự kiện mà FE Dashboard đang lắng nghe ('NEW_ORDER_TO_SHOP')
             // Room name phải khớp với lúc FE join: `shop_${shopId}`
-            io.to(`shop:${shopId}`).emit('NEW_ORDER_TO_SHOP', newOrder);            
+            io.to(`shop:${shopId}`).emit('NEW_ORDER_TO_SHOP', newOrder);
             console.log(`🔔 Đã bắn thông báo đơn mới tới shop_${shopId}`);
         } catch (socketError) {
             // Lỗi socket không được làm fail đơn hàng -> chỉ log ra thôi
@@ -196,7 +159,7 @@ export const createOrderService = async (data) => {
         //         const io = getIO();
         //         availableShippers.forEach(shipper => {
         //             const userId = shipper.user._id.toString();
-                    
+
         //             io.to(userId).emit('NEW_JOB', {
         //                 deliveryId: newDelivery._id,
         //                 pickup: newDelivery.pickup.address,
@@ -244,13 +207,13 @@ export const getOrderByIdService = async (orderId) => {
 const PERMISSIONS = {
     // Role 'restaurant' chỉ được phép set các trạng thái này
     restaurant_manager: ['confirmed', 'preparing', 'canceled'],
-    
+
     // Role 'driver' (shipper) chỉ được phép set các trạng thái này
     driver: ['picking_up', 'out_for_delivery', 'delivered', 'failed']
 };
 const STATUS_MAP = {
     'pending': 'Pending',
-    'confirmed': 'Confirmed', 
+    'confirmed': 'Confirmed',
     'preparing': 'Preparing', // <-- Trạng thái kích hoạt tìm ship
     'shipping': 'Shipping',
     'delivered': 'Delivered',
@@ -259,7 +222,7 @@ const STATUS_MAP = {
 export const updateOrderStatusService = async (orderId, newStatus, currentUser, io) => {
     // 1. Chuẩn hóa status đầu vào
     const normalizedStatus = newStatus.toLowerCase();
-    
+
     // 2. Tìm đơn hàng (KHÔNG dùng findByIdAndUpdate ngay, vì cần validate trước)
     const order = await Order.findById(orderId);
     if (!order) {
@@ -271,7 +234,7 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
 
     // Kiểm tra xem Role này có được phép set status này không?
     const allowedStatuses = PERMISSIONS[userRole];
-    
+
     if (!allowedStatuses || !allowedStatuses.includes(normalizedStatus)) {
         throw new ApiError(403, `Bạn không có quyền chuyển trạng thái đơn hàng sang "${newStatus}".`);
     }
@@ -291,10 +254,10 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
         } else {
             // Populate để lấy data cho Delivery Service
             await order.populate('shop user');
-            
+
             // Gọi service tạo delivery & bắn socket tìm ship
             const delivery = await deliveryService.createDeliveryForOrder(order, io);
-            
+
             // Link ngược delivery vào order
             order.delivery = delivery._id;
         }
@@ -313,10 +276,10 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
     // 6. Bắn Socket thông báo cho User (Khách hàng)
     if (io && order.user) {
         // Lưu ý: order.user có thể là object (do populate trên) hoặc id
-        const userId = order.user._id || order.user; 
-        io.to(`user:${userId}`).emit('ORDER_UPDATE', { 
-            status: normalizedStatus, 
-            msg: `Đơn hàng của bạn đã chuyển sang: ${normalizedStatus}` 
+        const userId = order.user._id || order.user;
+        io.to(`user:${userId}`).emit('ORDER_UPDATE', {
+            status: normalizedStatus,
+            msg: `Đơn hàng của bạn đã chuyển sang: ${normalizedStatus}`
         });
     }
 
@@ -327,7 +290,7 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
         shippingFee: order.shippingFee,
         deliveryId: order.delivery, // Chỉ cần ID delivery là đủ
         updatedAt: order.updatedAt,
-        
+
         // Nếu cần thông tin user/shop cơ bản để hiển thị lại UI
         user: {
             _id: order.user._id,

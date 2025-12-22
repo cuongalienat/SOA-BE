@@ -7,11 +7,11 @@ import { StatusCodes } from "http-status-codes";
 // 1. Nạp tiền vào ví (Giả lập hoặc từ Gateway)
 
 export const createWalletService = async (userId, pin) => {
-    let wallet = await Wallet.findOne({ user: userId });
+    let wallet = await Wallet.findOne({ userId: userId });
     if (wallet) {
         throw new ApiError(StatusCodes.BAD_REQUEST, "Ví đã tồn tại cho người dùng này.");
     }
-    wallet = new Wallet({ user: userId, pin: pin, balance: 0 });
+    wallet = new Wallet({ userId: userId, pin: pin, balance: 0 });
     await wallet.save();
     return wallet;
 }
@@ -23,7 +23,7 @@ export const depositToWalletService = async (userId, amount) => {
     try {
         if (amount <= 0) throw new ApiError(StatusCodes.BAD_REQUEST, "Số tiền nạp phải lớn hơn 0");
 
-        let wallet = await Wallet.findOne({ user: userId }).session(session);
+        let wallet = await Wallet.findOne({ userId: userId }).session(session);
         if (!wallet) {
             wallet = new Wallet({ user: userId, balance: 0 });
         }
@@ -33,7 +33,7 @@ export const depositToWalletService = async (userId, amount) => {
         await wallet.save({ session });
 
         // Tạo lịch sử giao dịch
-        const transaction = await transaction.create([{
+        const transaction = await Transaction.create([{
             wallet: wallet._id,
             user: userId,
             amount: amount, // Số dương
@@ -54,7 +54,7 @@ export const depositToWalletService = async (userId, amount) => {
 // 2. Trừ tiền để thanh toán đơn hàng (Được gọi từ OrderService)
 // Hàm này KHÔNG commit transaction, nó nhận session từ OrderService truyền vào
 export const processPaymentDeductionService = async (userId, amount, orderId, session) => {
-    const wallet = await Wallet.findOne({ user: userId }).session(session);
+    const wallet = await Wallet.findOne({ userId: userId }).session(session);
 
     if (!wallet) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Người dùng chưa kích hoạt ví.");
@@ -83,12 +83,12 @@ export const processPaymentDeductionService = async (userId, amount, orderId, se
 // 3. Lấy lịch sử giao dịch
 export const getTransactionHistoryService = async (userId, page = 1, limit = 10) => {
     const skip = (page - 1) * limit;
-    const transactions = await Transaction.find({ user: userId })
+    const transactions = await Transaction.find({ userId: userId })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
 
-    const total = await Transaction.countDocuments({ user: userId });
+    const total = await Transaction.countDocuments({ userId: userId });
 
     return {
         transactions,
@@ -100,7 +100,7 @@ export const getTransactionHistoryService = async (userId, page = 1, limit = 10)
 
 // 4. Lấy thông tin ví
 export const getMyWalletInfoService = async (userId) => {
-    let wallet = await Wallet.findOne({ user: userId });
+    let wallet = await Wallet.findOne({ userId: userId });
     if (!wallet) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Ví không tồn tại cho người dùng này.");
     }
