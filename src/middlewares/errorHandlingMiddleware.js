@@ -1,6 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../utils/ApiError.js';
-import logger from '../config/logger.js'; 
+import logger from '../config/logger.js';
 
 export const errorHandlingMiddleware = (err, req, res, next) => {
   // --- FIX BUG LOGIC: ---
@@ -9,7 +9,7 @@ export const errorHandlingMiddleware = (err, req, res, next) => {
   let error = err;
 
   // --- BƯỚC 1: CHUẨN HÓA LỖI (MAPPING) ---
-  
+
   // 1.1 Lỗi MongoDB: CastError (Sai ID)
   if (err.name === 'CastError') {
     const message = `Không tìm thấy tài nguyên với ID: ${err.value}`;
@@ -30,6 +30,7 @@ export const errorHandlingMiddleware = (err, req, res, next) => {
       field: el.path,
       message: el.message,
     }));
+    console.log("❌ VALIDATION ERRORS:", JSON.stringify(errors, null, 2)); // Debug log
     error = new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, message, errors);
   }
 
@@ -50,7 +51,7 @@ export const errorHandlingMiddleware = (err, req, res, next) => {
   }
 
   // --- BƯỚC 3: LOGGING THÔNG MINH ---
-  
+
   const logData = {
     statusCode: error.statusCode,
     message: error.message,
@@ -71,7 +72,7 @@ export const errorHandlingMiddleware = (err, req, res, next) => {
   }
 
   // --- BƯỚC 4: RESPONSE ---
-  
+
   const response = {
     success: false,
     statusCode: error.statusCode,

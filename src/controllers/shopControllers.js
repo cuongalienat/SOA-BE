@@ -14,11 +14,11 @@ export const createShop = async (req, res, next) => {
 export const getMyShop = async (req, res, next) => {
     try {
         const shops = await shopServices.getShopByOwnerService(req.user.id);
-        
+
         // Trả về { shops: [...] } thay vì { shop: ... }
-        res.status(StatusCodes.OK).json({ 
-            count: shops.length, // Thêm cái này cho tiện frontend xử lý
-            shops 
+        res.status(StatusCodes.OK).json({
+            success: true,
+            data: shops[0] // Giả sử chỉ lấy shop đầu tiên nếu có nhiều shop
         });
     } catch (error) {
         next(error);
@@ -29,7 +29,7 @@ export const updateMyShop = async (req, res, next) => {
     try {
         // Cho phép cập nhật tất cả các trường mới
         // Lưu ý: userId lấy từ token để đảm bảo chỉ sửa quán của mình
-        const updateData = req.body; 
+        const updateData = req.body;
 
         // Tốt nhất nên lọc bớt các trường nhạy cảm không cho sửa (VD: owner, rating, isVerified...)
         const allowedUpdates = {
@@ -46,10 +46,10 @@ export const updateMyShop = async (req, res, next) => {
         Object.keys(allowedUpdates).forEach(key => allowedUpdates[key] === undefined && delete allowedUpdates[key]);
 
         const shop = await shopServices.updateShopService(req.user.id, allowedUpdates);
-        
-        res.status(StatusCodes.OK).json({ 
+
+        res.status(StatusCodes.OK).json({
             message: "Shop updated successfully",
-            shop 
+            shop
         });
     } catch (error) {
         next(error);
@@ -59,16 +59,16 @@ export const updateMyShop = async (req, res, next) => {
 export const updateShopStatus = async (req, res, next) => {
     try {
         const { isOpen } = req.body;
-        
+
         // Validate cơ bản
         if (typeof isOpen !== 'boolean') {
             return res.status(StatusCodes.BAD_REQUEST).json({ message: "isOpen must be a boolean" });
         }
 
         const shop = await shopServices.updateShopStatusService(req.user.id, isOpen);
-        res.status(StatusCodes.OK).json({ 
+        res.status(StatusCodes.OK).json({
             message: `Shop is now ${isOpen ? 'Open' : 'Closed'}`,
-            shop 
+            shop
         });
     } catch (error) {
         next(error);
@@ -79,7 +79,7 @@ export const getAllShops = async (req, res, next) => {
     try {
         // Lấy page và limit từ query parameters của URL
         const { page, limit } = req.query;
-        
+
         // Truyền các tùy chọn này vào service
         const result = await shopServices.getAllShopsService({ page, limit });
 
@@ -96,9 +96,18 @@ export const getShopDetails = async (req, res, next) => {
     try {
         // Gọi hàm service mới update
         const data = await shopServices.getShopDetailService(req.params.id);
-        
+
         // Trả về cục data to đùng gồm Shop + Menu
         res.status(StatusCodes.OK).json(data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getShopByID = async (req, res, next) => {
+    try {
+        const shop = await shopServices.getShopByIDService(req.params.id);
+        res.status(StatusCodes.OK).json(shop);
     } catch (error) {
         next(error);
     }

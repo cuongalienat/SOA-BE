@@ -65,13 +65,13 @@ const orderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Canceled'],
+        enum: ['Pending', 'Confirmed', 'Preparing', 'Shipping', 'Delivered', 'Canceled'],
         default: 'Pending',
         required: true,
     },
     address: {
         type: String,
-        require: true,
+        required: true,
     },
     payment: {
         type: mongoose.Schema.Types.ObjectId,
@@ -89,7 +89,7 @@ const orderSchema = new mongoose.Schema({
         ref: 'Rating',
         default: null,
     },
-    shippingAddress: { type: String, required: true }, // Đ/c chữ: "123 Giải Phóng..."
+    distance: { type: Number, required: true }, // Khoảng cách từ cửa hàng đến địa chỉ khách hàng (mét)
     contactPhone: { type: String, required: true },    // SĐT người nhận
     customerLocation: {                                // Tọa độ người nhận
         lat: { type: Number, required: true },

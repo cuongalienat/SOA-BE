@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@mapbox/polyline": "^1.2.1",
     "@turf/turf": "^7.3.1",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
@@ -24,15 +25,12 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.1",
     "morgan": "^1.10.1",
-    "morgan": "^1.10.1",
     "nodemailer": "^7.0.10",
     "otp-generator": "^4.0.1",
     "puppeteer": "^24.31.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "socket.io": "^4.8.1",
-    "winston": "^3.18.3",
-    "winston-daily-rotate-file": "^5.0.0",
     "winston": "^3.18.3",
     "winston-daily-rotate-file": "^5.0.0"
   },

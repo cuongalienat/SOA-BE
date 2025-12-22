@@ -1,7 +1,6 @@
 import { deliveryService } from '../services/deliveryService.js';
 import { StatusCodes } from 'http-status-codes';
-// import { io } from '../../index.js'; 
-
+import { getIO } from '../utils/socket.js';
 const createNewDelivery = async (req, res, next) => {
   try {
     // Validate req.body ở đây (dùng Joi/Zod) trước khi gọi service
@@ -48,7 +47,7 @@ export const updateDelivery = async (req, res, next) => {
     // TRƯỜNG HỢP 1: Tài xế muốn NHẬN ĐƠN
     if (status === 'ASSIGNED') {
       // Gọi service xử lý tranh chấp (Race Condition)
-      result = await deliveryService.assignShipper(id, userId);
+      result = await deliveryService.assignShipper(id, userId, location);
       message = 'Nhận đơn hàng thành công!';
     } 
     
@@ -61,7 +60,7 @@ export const updateDelivery = async (req, res, next) => {
       
       // TODO: Emit Socket.io ở đây để báo cho khách hàng
       if (req.io) {
-          req.io.to(result.orderId.toString()).emit('DELIVERY_UPDATED', result);
+          req.io.to(`order:${result.orderId.toString()}`).emit('DELIVERY_UPDATED', result);
       }
     }
 
@@ -100,9 +99,27 @@ const getCurrentJob = async (req, res, next) => {
     }
 };
 
+const getNearbyOrders = async (req, res, next) => {
+    try {
+        const userId = req.user._id; // Lấy ID từ token của Shipper
+        
+        // Gọi service (Hàm này bạn vừa viết ở bước trước)
+        const orders = await deliveryService.getNearbyDeliveries(userId);
+        
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: "Lấy danh sách đơn hàng thành công",
+            data: orders
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const deliveryController = {
   createNewDelivery,
   getDeliveryDetails,
   updateDelivery,
-  getCurrentJob
+  getCurrentJob,
+  getNearbyOrders,
 };
