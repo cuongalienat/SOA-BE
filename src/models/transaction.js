@@ -1,14 +1,19 @@
 import mongoose from "mongoose";
 
 const transactionSchema = new mongoose.Schema({
-    wallet: {
+    senderID: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: "Wallet"
+        ref: "User"
+    },
+    receiverID: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: "User"
     },
     type: {
         type: String,
-        enum: ['DEPOSIT', 'PAYMENT', 'REFUND'],
+        enum: ['ORDER_PAYMENT', 'ORDER_REFUND', 'SHIPPER_PAYOUT', 'SHOP_PAYOUT'],
         required: true
     },
     amount: {
@@ -20,13 +25,29 @@ const transactionSchema = new mongoose.Schema({
         enum: ["Pending", "Completed", "Failed"],
         default: "Pending"
     },
-    balanceAfter: {
+    senderBalanceBefore: {
+        type: Number,
+        required: true
+    },
+    senderBalanceAfter: {
+        type: Number,
+        required: true
+    },
+    receiverBalanceBefore: {
+        type: Number,
+        required: true
+    },
+    receiverBalanceAfter: {
         type: Number,
         required: true
     },
     relatedOrder: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Order",
+        default: null
+    },
+    description: {
+        type: String,
         default: null
     }
 }, { timestamps: true });

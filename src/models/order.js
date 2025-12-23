@@ -75,7 +75,7 @@ const orderSchema = new mongoose.Schema({
     },
     payment: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Payment',
+        ref: 'Transaction',
         // required: true,
         default: null,
     },
@@ -92,10 +92,6 @@ const orderSchema = new mongoose.Schema({
     distance: { type: Number, required: true }, // Khoảng cách từ cửa hàng đến địa chỉ khách hàng (mét)
     estimatedDuration: { type: String },
     contactPhone: { type: String, required: true },    // SĐT người nhận
-    customerLocation: {                                // Tọa độ người nhận
-        lat: { type: Number, required: true },
-        lng: { type: Number, required: true }
-    },
 }, { timestamps: true })
 
 const Order = mongoose.model("Order", orderSchema)

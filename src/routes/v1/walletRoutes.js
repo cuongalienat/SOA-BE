@@ -1,7 +1,9 @@
 import express from "express";
 import {
     getMyWallet,
+    createWallet,
     depositMoney,
+    withdrawMoney,
     getHistory
 } from "../../controllers/walletControllers.js";
 import { authMiddleware } from "../../middlewares/authMiddlewares.js";
@@ -12,12 +14,12 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // 1. Get Wallet Info (Balance)
-router.get("/", getMyWallet);
+router.get("/", authMiddleware, getMyWallet);
+router.post("/", authMiddleware, createWallet);
 
 // 2. Deposit Money
-router.post("/deposit", depositMoney);
-
-// 3. Get Transaction History
-router.get("/history", getHistory);
+router.post("/deposit", authMiddleware, depositMoney);
+router.post("/withdraw", authMiddleware, withdrawMoney);
+router.get("/history", authMiddleware, getHistory);
 
 export default router;

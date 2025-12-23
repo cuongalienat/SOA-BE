@@ -1,5 +1,5 @@
 import User from "../models/user.js";
-import Shop from "../models/shop.js"; 
+import Shop from "../models/shop.js";
 import ApiError from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
@@ -9,14 +9,14 @@ import { OAuth2Client } from "google-auth-library";
 
 export const createAdminService = async (adminData) => {
     const {
-        username, password, email, fullName, age, phone, role
+        username, password, email, fullName, age, phone, role, isVerified
     } = adminData;
     const admin = await User.findOne({ username });
     if (admin) {
         throw new ApiError(StatusCodes.CONFLICT, "Admin already existed");
     }
 
-    const newAdmin = User.create({ username, password, email, fullName, age, phone, role });
+    const newAdmin = User.create({ username, password, email, fullName, age, phone, role, isVerified });
     if (!newAdmin) {
         throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to create admin");
     }
@@ -85,7 +85,7 @@ export const signInService = async (username, password) => {
     if (user.role === 'restaurant_manager') {
         // Tìm Shop mà user này sở hữu (Giả sử trong ShopModel có trường owner)
         const shop = await Shop.findOne({ owner: user._id }).select('_id name');
-        
+
         if (shop) {
             userResponse.shopId = shop._id;
             // userResponse.shopName = shop.name; // Gửi kèm tên quán nếu thích
@@ -203,10 +203,9 @@ export const signInWithGoogleService = async (googleToken) => {
             await user.save();
         } else {
             const generatedUsername = email.split('@')[0];
-
             user = await User.create({
                 username: generatedUsername,
-                fullName: generatedUsername,
+                fullName: name,
                 age: null,
                 phone: null,
                 email: email,
