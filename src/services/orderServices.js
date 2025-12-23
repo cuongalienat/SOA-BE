@@ -13,14 +13,134 @@ import { deliveryService } from "./deliveryService.js";
 import { distance } from "@turf/turf";
 import { calculateShippingFeeByDistance } from "./shippingServices.js";
 
-
 // 1. Tạo đơn hàng
 export const createOrderService = async (data) => {
     // userLocation bây giờ có thể chỉ chứa { address: "..." }
     const { userId, shopId, items, paymentMethod, userLocation, distanceData, shippingFee } = data;
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+      const itemTotal = dbItem.price * itemData.quantity;
+      calculatedTotalAmount += itemTotal;
+
+      orderItems.push({
+        item: dbItem._id,
+        name: dbItem.name,
+        imageUrl: dbItem.imageUrl,
+        price: dbItem.price,
+        quantity: itemData.quantity,
+        options: itemData.options || [],
+      });
+    }
+
+    // --- 3. TÍNH KHOẢNG CÁCH & PHÍ SHIP ---
+    const shopCoords = `${dbShop.location.coordinates[1]},${dbShop.location.coordinates[0]}`; // Lat,Lng
+    const userCoords = `${finalLat},${finalLng}`; // Lat,Lng (Dùng toạ độ vừa tìm được)
+
+    const distanceData = await getDistance(shopCoords, userCoords);
+
+    if (!distanceData) {
+      throw new ApiError(
+        500,
+        "Lỗi tính khoảng cách (Goong API). Kiểm tra lại Key."
+      );
+    }
+
+    const realDistance = distanceData.distanceValue;
+    const realShippingFee = calculateShippingFee(
+      realDistance,
+      calculatedTotalAmount
+    );
+    const finalTotal = calculatedTotalAmount + realShippingFee;
+
+    // --- 4. LƯU ORDER ---
+    const newOrder = new Order({
+      user: userId,
+      shop: shopId,
+      items: orderItems,
+      totalAmount: finalTotal,
+      distance: realDistance,
+      shippingFee: realShippingFee,
+      address: userLocation.address,
+      contactPhone: userLocation.phone,
+      customerLocation: {
+        lat: finalLat,
+        lng: finalLng,
+      },
+      status: "Pending",
+      payment: null,
+    });
+
+    await newOrder.save({ session });
+    const user = await User.findById(userId);
+    // // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
+    // console.log("user", user.phone);
+    // console.log("shop", dbShop.phones);
+    // const newDelivery = new Delivery({
+    //     orderId: newOrder._id,
+    //     pickup: {
+    //         name: dbShop.name,
+    //         address: dbShop.address,
+    //         phone: (dbShop.phones && dbShop.phones.length > 0) ? dbShop.phones[0] : (dbShop.phone || "N/A"),
+    //         location: {
+    //             type: 'Point',
+    //             coordinates: dbShop.location.coordinates
+    //         }
+    //     },
+    //     dropoff: {
+    //         name: userLocation.name || "Khách hàng",
+    //         address: userLocation.address,
+    //         phone: user.phone,
+    //         location: {
+    //             type: 'Point',
+    //             // 👇 Lưu ý: MongoDB GeoJSON lưu [Lng, Lat] (Lng trước)
+    //             coordinates: [finalLng, finalLat]
+    //         }
+    //     },
+    //     distance: realDistance,
+    //     shippingFee: realShippingFee,
+    //     status: 'SEARCHING',
+    //     trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
+    // });
+
+    // await newDelivery.save({ session });
+    // newOrder.delivery = newDelivery._id;
+
+    // --- 6. XỬ LÝ VÍ (NẾU CÓ) ---
+    let transactionRef = null;
+    let paymentStatus = "Pending";
+
+    if (paymentMethod === "WALLET") {
+      const trans = await processPaymentDeductionService(
+        userId,
+        finalTotal,
+        newOrder._id,
+        session
+      );
+      transactionRef = trans._id;
+      paymentStatus = "Completed";
+      newOrder.status = "Confirmed";
+    }
+
+    await newOrder.save({ session });
+
+    // --- 7. TẠO PAYMENT ---
+    const newPayment = await Payment.create(
+      [
+        {
+          order: newOrder._id,
+          user: userId,
+          amount: finalTotal,
+          method: paymentMethod,
+          status: paymentStatus,
+          transactionReference: transactionRef,
+        },
+      ],
+      { session }
+    );
+
+    newOrder.payment = newPayment[0]._id;
+    await newOrder.save({ session });
+
+    await session.commitTransaction();
 
     const distanceKm = distanceData.distanceValue / 1000;
     const shippingFeeBE = await calculateShippingFeeByDistance(distanceKm);
@@ -176,21 +296,58 @@ export const createOrderService = async (data) => {
         session.endSession();
         throw error;
     }
+
+    // try {
+    //     const shopLocation = newDelivery.pickup.location.coordinates;
+    //     // Tìm shipper trong 5km
+    //     const availableShippers = await findNearbyShippers(shopLocation, 5000);
+    //     console.log(`📡 Order ${newOrder._id}: Tìm thấy ${availableShippers.length} tài xế.`);
+
+    //     if (availableShippers.length > 0) {
+    //         const io = getIO();
+    //         availableShippers.forEach(shipper => {
+    //             const userId = shipper.user._id.toString();
+
+    //             io.to(userId).emit('NEW_JOB', {
+    //                 deliveryId: newDelivery._id,
+    //                 pickup: newDelivery.pickup.address,
+    //                 dropoff: newDelivery.dropoff.address,
+    //                 fee: newDelivery.shippingFee,
+    //                 distance: newDelivery.distance
+    //             });
+    //         });
+    //     }
+    // } catch (socketError) {
+    //     // Nếu lỗi socket/tìm shipper thì chỉ log thôi, KHÔNG throw error
+    //     // vì đơn hàng đã tạo thành công rồi.
+    //     console.error("⚠️ Lỗi điều phối shipper:", socketError.message);
+    // }
+
+    return {
+      ...newOrder.toObject(),
+      distance: realDistance,
+      estimatedDuration: distanceData.durationText,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
 };
 
 // 2. Lấy chi tiết đơn
 export const getOrderByIdService = async (orderId) => {
-    const order = await Order.findById(orderId)
-        .populate('user', 'name email phone address')
-        .populate('shop', 'name address phone')
-        .populate('items.item', 'image description')
-        .populate('payment')
-        .populate('delivery');
+  const order = await Order.findById(orderId)
+    .populate("user", "name email phone address")
+    .populate("shop", "name address phone")
+    .populate("items.item", "image description")
+    .populate("payment")
+    .populate("delivery");
 
-    if (!order) {
-        throw new ApiError(404, 'Không tìm thấy đơn hàng.');
-    }
-    return order;
+  if (!order) {
+    throw new ApiError(404, "Không tìm thấy đơn hàng.");
+  }
+  return order;
 };
 
 // 3. Cập nhật trạng thái
@@ -218,6 +375,53 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
     if (!order) {
         throw new ApiError(404, 'Đơn hàng không tồn tại.');
     }
+  }
+
+  // CASE B: SHIPPER nhận đơn -> update delivery status
+  if (
+    normalizedStatus === "picking_up" ||
+    normalizedStatus === "out_for_delivery"
+  ) {
+    // Logic cập nhật bảng Delivery (nếu cần)
+    // await deliveryService.updateDeliveryStatus(order.delivery, normalizedStatus);
+  }
+
+  // 5. Lưu thay đổi vào DB
+  order.status = STATUS_MAP[normalizedStatus];
+  await order.save();
+
+  // 6. Bắn Socket thông báo cho User (Khách hàng)
+  if (io && order.user) {
+    // Lưu ý: order.user có thể là object (do populate trên) hoặc id
+    const userId = order.user._id || order.user;
+    io.to(`user:${userId}`).emit("ORDER_UPDATE", {
+      status: normalizedStatus,
+      msg: `Đơn hàng của bạn đã chuyển sang: ${normalizedStatus}`,
+    });
+  }
+
+  return {
+    _id: order._id,
+    status: order.status,
+    totalAmount: order.totalAmount,
+    shippingFee: order.shippingFee,
+    deliveryId: order.delivery, // Chỉ cần ID delivery là đủ
+    updatedAt: order.updatedAt,
+
+    // Nếu cần thông tin user/shop cơ bản để hiển thị lại UI
+    user: {
+      _id: order.user._id,
+      fullName: order.user.fullName,
+      phone: order.user.phone,
+    },
+    shop: {
+      _id: order.shop._id,
+      name: order.shop.name,
+      address: order.shop.address,
+      location: order.shop.location,
+    },
+  };
+};
 
     // 3. CHECK QUYỀN (Quan trọng nhất)
     const userRole = currentUser.role; // Ví dụ: 'restaurant' hoặc 'driver'
@@ -229,10 +433,8 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
         throw new ApiError(403, `Bạn không có quyền chuyển trạng thái đơn hàng sang "${newStatus}".`);
     }
 
-    // 4. Validate Logic nghiệp vụ cũ (Đơn hủy không được sửa)
-    if (order.status === 'canceled' && normalizedStatus !== 'canceled') {
-        throw new ApiError(400, 'Không thể cập nhật đơn hàng đã bị hủy.');
-    }
+    order.status = "Canceled";
+    await order.save({ session });
 
     // --- LOGIC RIÊNG CỦA TỪNG TRẠNG THÁI ---
 
@@ -337,28 +539,28 @@ export const cancelOrderService = async (orderId, userId) => {
 
 // 5. Lấy danh sách (giữ nguyên logic, chỉ thêm try catch nếu cần xử lý lỗi DB lạ)
 export const getOrdersService = async (filter = {}, page = 1, limit = 10) => {
-    const skip = (page - 1) * limit;
-    const orders = await Order.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('shop', 'name image')
-        .populate('user', 'name');
+  const skip = (page - 1) * limit;
+  const orders = await Order.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate("shop", "name image")
+    .populate("user", "name");
 
-    const total = await Order.countDocuments(filter);
+  const total = await Order.countDocuments(filter);
 
-    return {
-        orders,
-        total,
-        currentPage: page,
-        totalPages: Math.ceil(total / limit)
-    };
+  return {
+    orders,
+    total,
+    currentPage: page,
+    totalPages: Math.ceil(total / limit),
+  };
 };
 
 export default {
-    createOrderService,
-    getOrderByIdService,
-    updateOrderStatusService,
-    cancelOrderService,
-    getOrdersService
+  createOrderService,
+  getOrderByIdService,
+  updateOrderStatusService,
+  cancelOrderService,
+  getOrdersService,
 };

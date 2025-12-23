@@ -16,9 +16,7 @@ const Router = express.Router();
 
 // Test route
 Router.get("/status", (req, res) => {
-    res
-        .status(StatusCodes.OK)
-        .json({ message: "APIs are ready to use" });
+  res.status(StatusCodes.OK).json({ message: "APIs are ready to use" });
 });
 
 // route con
