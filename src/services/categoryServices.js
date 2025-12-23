@@ -5,6 +5,24 @@ import ApiError from "../utils/ApiError.js";
 import { StatusCodes } from "http-status-codes";
 import mongoose from "mongoose";
 
+export const getCategoriesById = async (categoryId) => {
+  if (!categoryId) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "categoryId không hợp lệ");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "categoryId không hợp lệ");
+  }
+
+  const category = await CategoryModel.findById(categoryId).lean();
+
+  if (!category) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Danh mục không tồn tại");
+  }
+
+  return category;
+};
+
 export const getCategoriesByShopId = async (shopId) => {
   if (!shopId) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "shopId is required");

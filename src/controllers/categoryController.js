@@ -1,6 +1,19 @@
 import { StatusCodes } from "http-status-codes";
 import * as categoryServices from "../services/categoryServices.js";
 
+
+export const getCategoryById = async (req, res, next) => {
+  try {
+    const category = await categoryServices.getCategoriesById(req.params.id);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: category,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 export const getCategories = async (req, res, next) => {
   try {
     const categories = await categoryServices.getCategoriesForMyShop(req.user.id);

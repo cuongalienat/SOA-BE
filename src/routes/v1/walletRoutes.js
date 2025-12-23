@@ -4,7 +4,8 @@ import {
     createWallet,
     depositMoney,
     withdrawMoney,
-    getHistory
+    getHistory,
+    checkPin,
 } from "../../controllers/walletControllers.js";
 import { authMiddleware } from "../../middlewares/authMiddlewares.js";
 
@@ -21,5 +22,8 @@ router.post("/", authMiddleware, createWallet);
 router.post("/deposit", authMiddleware, depositMoney);
 router.post("/withdraw", authMiddleware, withdrawMoney);
 router.get("/history", authMiddleware, getHistory);
+
+// 3. Get history
+router.post("/checkPin", authMiddleware, checkPin);
 
 export default router;

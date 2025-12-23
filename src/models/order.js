@@ -24,12 +24,10 @@ const orderItemSchema = new mongoose.Schema({
         required: true,
         min: 1
     },
-    options: [
-        {
-            name: String,
-            value: String
-        }
-    ]
+    options: {
+        type: String,
+        default: ""
+    }
 }, { _id: false });
 
 const orderSchema = new mongoose.Schema({
