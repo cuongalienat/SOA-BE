@@ -30,7 +30,7 @@ export const getMyShopDashboard = async (req, res, next) => {
         res.status(StatusCodes.OK).json({
             success: true,
             message: "Get shop dashboard successfully",
-            data : dashboard
+            data: dashboard
         });
     } catch (error) {
         next(error);
@@ -38,46 +38,46 @@ export const getMyShopDashboard = async (req, res, next) => {
 };
 
 export const updateMyShop = async (req, res, next) => {
-  try {
-    const updateData = {};
+    try {
+        const updateData = {};
 
-    /* ===== TEXT FIELDS ===== */
-    if (req.body.name) updateData.name = req.body.name;
-    if (req.body.address) updateData.address = req.body.address;
+        /* ===== TEXT FIELDS ===== */
+        if (req.body.name) updateData.name = req.body.name;
+        if (req.body.address) updateData.address = req.body.address;
 
-    // Phones: FE gửi phones[]
-    if (req.body["phones[]"]) {
-      updateData.phones = Array.isArray(req.body["phones[]"])
-        ? req.body["phones[]"]
-        : [req.body["phones[]"]];
+        // Phones: FE gửi phones[]
+        if (req.body["phones[]"]) {
+            updateData.phones = Array.isArray(req.body["phones[]"])
+                ? req.body["phones[]"]
+                : [req.body["phones[]"]];
+        }
+
+        /* ===== FILES FROM CLOUDINARY ===== */
+        if (req.files?.coverImage?.[0]) {
+            updateData.coverImage = req.files.coverImage[0].path; // URL string
+        }
+
+        if (req.files?.qrImage?.[0]) {
+            updateData.qrImage = req.files.qrImage[0].path;
+        }
+
+        /* ===== OPTIONAL FIELDS ===== */
+        if (req.body.photos) updateData.photos = req.body.photos;
+        if (req.body.openingHours) updateData.openingHours = req.body.openingHours;
+        if (req.body.priceRange) updateData.priceRange = req.body.priceRange;
+
+        const shop = await shopServices.updateShopService(
+            req.user.id,
+            updateData
+        );
+
+        res.status(200).json({
+            success: true,
+            data: shop,
+        });
+    } catch (error) {
+        next(error);
     }
-
-    /* ===== FILES FROM CLOUDINARY ===== */
-    if (req.files?.coverImage?.[0]) {
-      updateData.coverImage = req.files.coverImage[0].path; // URL string
-    }
-
-    if (req.files?.qrImage?.[0]) {
-      updateData.qrImage = req.files.qrImage[0].path;
-    }
-
-    /* ===== OPTIONAL FIELDS ===== */
-    if (req.body.photos) updateData.photos = req.body.photos;
-    if (req.body.openingHours) updateData.openingHours = req.body.openingHours;
-    if (req.body.priceRange) updateData.priceRange = req.body.priceRange;
-
-    const shop = await shopServices.updateShopService(
-      req.user.id,
-      updateData
-    );
-
-    res.status(200).json({
-      success: true,
-      data: shop,
-    });
-  } catch (error) {
-    next(error);
-  }
 };
 
 
@@ -133,6 +133,15 @@ export const getShopDetails = async (req, res, next) => {
 export const getShopByID = async (req, res, next) => {
     try {
         const shop = await shopServices.getShopByIDService(req.params.id);
+        res.status(StatusCodes.OK).json(shop);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getShopDashboard = async (req, res, next) => {
+    try {
+        const shop = await shopServices.getShopDashboardService(req.params.id);
         res.status(StatusCodes.OK).json(shop);
     } catch (error) {
         next(error);
