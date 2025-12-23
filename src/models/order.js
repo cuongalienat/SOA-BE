@@ -90,6 +90,7 @@ const orderSchema = new mongoose.Schema({
         default: null,
     },
     distance: { type: Number, required: true }, // Khoảng cách từ cửa hàng đến địa chỉ khách hàng (mét)
+    estimatedDuration: { type: String },
     contactPhone: { type: String, required: true },    // SĐT người nhận
 }, { timestamps: true })
 

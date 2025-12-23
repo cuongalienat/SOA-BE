@@ -65,7 +65,15 @@ export const getItemById = async (req, res, next) => {
  */
 export const createItem = async (req, res, next) => {
     try {
-        const newItem = await itemService.createNewItem(req.body);
+    const createData = { ...req.body };
+
+    // ===== FILE FROM CLOUDINARY (multer-storage-cloudinary) =====
+    const uploadedImage = req.files?.image?.[0] || req.files?.imageUrl?.[0];
+    if (uploadedImage?.path) {
+      createData.imageUrl = uploadedImage.path;
+    }
+
+    const newItem = await itemService.createNewItem(createData);
 
         res.status(StatusCodes.CREATED).json({
             success: true,
@@ -83,7 +91,15 @@ export const createItem = async (req, res, next) => {
  */
 export const updateItem = async (req, res, next) => {
     try {
-        const item = await itemService.updateItemById(req.params.id, req.body);
+    const updateData = { ...req.body };
+
+    // ===== FILE FROM CLOUDINARY (multer-storage-cloudinary) =====
+    const uploadedImage = req.files?.image?.[0] || req.files?.imageUrl?.[0];
+    if (uploadedImage?.path) {
+      updateData.imageUrl = uploadedImage.path;
+    }
+
+    const item = await itemService.updateItemById(req.params.id, updateData);
 
         if (!item) {
             throw new ApiError(StatusCodes.NOT_FOUND, 'Không tìm thấy món ăn để cập nhật');

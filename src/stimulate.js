@@ -4,12 +4,12 @@ import polyline from '@mapbox/polyline'; // Nhớ npm install ở backend folder
 import dotenv from "dotenv";
 dotenv.config();
 
-const DELIVERY_ID = "693815c6616393ab3748dbe5"; 
-const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzdkZmUwMDIxMTk2ZTkxYmQ5N2Y4NiIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE3NjUyNzU4OTMsImV4cCI6MTc2NTM2MjI5M30.JIoA4I0ggZZKhe5Ivta6DzGd_75yIg3enjUQc8HqjVU"; 
+const DELIVERY_ID = "69490c403dd98a3edabc2d47"; 
+const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzdkZmUwMDIxMTk2ZTkxYmQ5N2Y4NiIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE3NjYzNzU5MTUsImV4cCI6MTc2NjQ2MjMxNX0.i5FmCGhQsTgAk8Fjbd4_0QMvenKUlQZye8U-6KNf4SY"; 
 const GOONG_API_KEY = process.env.GOONG_API_KEY;
 
 const START_POINT = { lat: 20.99867431900003, lng: 105.82302730300006 }; 
-const END_POINT = { lat: 21.02446410174219, lng: 105.85766831143705 };
+const END_POINT = { lat: 21.02298121700005, lng: 105.77451449100005 };
 
 
 const runRealSimulation = async () => {
@@ -34,7 +34,7 @@ const runRealSimulation = async () => {
 
         console.log("⏳ Đang chuyển trạng thái sang PICKING_UP (Đi lấy hàng)...");
         await axios.patch(
-            `http://localhost:3000/v1/deliveries/${DELIVERY_ID}/status`,
+            `http://localhost:3000/v1/deliveries/${DELIVERY_ID}`,
             {
                 status: "PICKING_UP",
                 // Giả sử lấy hàng thì đang đứng ở Shop (START_POINT)
@@ -54,7 +54,7 @@ const runRealSimulation = async () => {
             
             try {
                 await axios.patch(
-                    `http://localhost:3000/v1/deliveries/${DELIVERY_ID}/status`,
+                    `http://localhost:3000/v1/deliveries/${DELIVERY_ID}`,
                     {
                         status: "DELIVERING", // Giờ chuyển sang DELIVERING là hợp lệ
                         location: {
@@ -78,7 +78,7 @@ const runRealSimulation = async () => {
         
         // Hoàn tất đơn
         await axios.patch(
-            `http://localhost:3000/v1/deliveries/${DELIVERY_ID}/status`,
+            `http://localhost:3000/v1/deliveries/${DELIVERY_ID}`,
             { status: "COMPLETED", location: { lat: END_POINT.lat, lng: END_POINT.lng } },
             { headers: { Authorization: `Bearer ${TOKEN}` } }
         );
