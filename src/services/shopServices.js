@@ -99,22 +99,89 @@ export const getMyShopDashboardService = async (ownerId) => {
     };
 };
 
+/**
+ * Lấy dữ liệu dashboard theo shopId
+ */
+export const getShopDashboardService = async (shopId) => {
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
+    }
+
+    const orderStats = await Order.aggregate([
+        {
+            $match: {
+                shop: shop._id,
+                status: { $ne: "Canceled" }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                revenue: { $sum: "$totalAmount" },
+                totalOrders: { $sum: 1 },
+                avgOrderValue: { $avg: "$totalAmount" }
+            }
+        }
+    ]);
+
+    const topProducts = await Order.aggregate([
+        { $match: { shop: shop._id, status: "Delivered" } },
+        { $unwind: "$items" },
+        {
+            $group: {
+                _id: "$items.name",
+                quantity: { $sum: "$items.quantity" }
+            }
+        },
+        { $sort: { quantity: -1 } },
+        { $limit: 4 }
+    ]);
+
+    const recentOrders = await Order.find({ shop: shop._id })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("totalAmount status contactPhone");
+
+    return {
+        shop: {
+            name: shop.name,
+            isOpen: shop.isOpen
+        },
+        stats: {
+            revenue: orderStats[0]?.revenue || 0,
+            totalOrders: orderStats[0]?.totalOrders || 0,
+            avgOrderValue: Math.round(orderStats[0]?.avgOrderValue || 0),
+            rating: shop.rating?.avg || 0
+        },
+        topProducts: topProducts.map(p => ({
+            label: p._id,
+            value: p.quantity
+        })),
+        recentOrders: recentOrders.map(o => ({
+            customer: o.contactPhone,
+            total: o.totalAmount,
+            status: o.status
+        }))
+    };
+};
+
 // Cập nhật thông tin quán
 export const updateShopService = async (ownerId, updateData) => {
-  const shop = await Shop.findOneAndUpdate(
-    { owner: ownerId },
-    updateData,
-    {
-      new: true,          // 🔥 CỰC KỲ QUAN TRỌNG
-      runValidators: true // 🔒 giữ schema đúng
+    const shop = await Shop.findOneAndUpdate(
+        { owner: ownerId },
+        updateData,
+        {
+            new: true,          // 🔥 CỰC KỲ QUAN TRỌNG
+            runValidators: true // 🔒 giữ schema đúng
+        }
+    );
+
+    if (!shop) {
+        throw new ApiError(404, "Shop not found");
     }
-  );
 
-  if (!shop) {
-    throw new ApiError(404, "Shop not found");
-  }
-
-  return shop;
+    return shop;
 };
 
 

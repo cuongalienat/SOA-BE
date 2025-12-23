@@ -1,6 +1,7 @@
 /* File: src/services/goongServices.js */
 import axios from 'axios';
 import dotenv from 'dotenv';
+import ApiError from '../utils/ApiError.js';
 dotenv.config();
 
 const GOONG_API_KEY = process.env.GOONG_API_KEY;
@@ -10,7 +11,7 @@ export const getCoordinates = async (address) => {
     try {
         const url = `https://rsapi.goong.io/Geocode?address=${encodeURIComponent(address)}&api_key=${GOONG_API_KEY}`;
         const response = await axios.get(url);
-        
+
         if (response.data.results && response.data.results.length > 0) {
             const location = response.data.results[0].geometry.location;
             return {
@@ -30,9 +31,9 @@ export const getDistance = async (origin, destination) => {
     try {
         // origin & destination format: "lat,lng" (Ví dụ: "21.028511,105.804817")
         const url = `https://rsapi.goong.io/DistanceMatrix?origins=${origin}&destinations=${destination}&vehicle=bike&api_key=${GOONG_API_KEY}`;
-        
+
         const response = await axios.get(url);
-        
+
         if (response.data.rows && response.data.rows[0].elements && response.data.rows[0].elements[0].distance) {
             return {
                 distanceValue: response.data.rows[0].elements[0].distance.value, // Mét (VD: 3500)

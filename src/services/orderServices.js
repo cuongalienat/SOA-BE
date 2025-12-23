@@ -11,6 +11,7 @@ import { findNearbyShippers } from "./shipperServices.js";
 import { getIO } from "../utils/socket.js";
 import { deliveryService } from "./deliveryService.js";
 import { distance } from "@turf/turf";
+import { calculateShippingFeeByDistance } from "./shippingServices.js";
 
 
 // 1. Tạo đơn hàng
@@ -21,9 +22,11 @@ export const createOrderService = async (data) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
+    const distanceKm = distanceData.distanceValue / 1000;
+    const shippingFeeBE = await calculateShippingFeeByDistance(distanceKm);
+
     try {
         const coordinates = await getCoordinates(userLocation.address);
-        console.log("🚀 ~ createOrderService ~ coordinates:", coordinates);
         let finalLat = coordinates.lat;
         let finalLng = coordinates.lng;
         if (!finalLat || !finalLng) throw new ApiError(400, "Không tìm thấy toạ độ (lat, lng).");
@@ -53,7 +56,7 @@ export const createOrderService = async (data) => {
                 imageUrl: dbItem.imageUrl,
                 price: dbItem.price,
                 quantity: itemData.quantity,
-                options: itemData.options || [],
+                options: itemData.options || "",
             });
         }
 
@@ -69,7 +72,7 @@ export const createOrderService = async (data) => {
             items: orderItems,
             totalAmount: finalTotal,
             distance: distanceData.distanceValue,
-            shippingFee: shippingFee,
+            shippingFee: shippingFeeBE,
             estimatedDuration: distanceData.durationText,
             address: userLocation.address,
             contactPhone: user.phone,

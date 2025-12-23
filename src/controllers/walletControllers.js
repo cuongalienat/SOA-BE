@@ -73,3 +73,18 @@ export const getHistory = async (req, res, next) => {
         next(error);
     }
 };
+
+export const checkPin = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { pin } = req.body;
+        const result = await walletService.checkPinService(userId, pin);
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
