@@ -47,9 +47,10 @@ export const createAdmin = async (req, res, next) => {
             username: process.env.ADMIN_USERNAME,
             password: process.env.ADMIN_PASSWORD,
             email: " ",
-            name: " ",
+            fullName: " ",
             age: " ",
             phone: " ",
+            isVerified: "yes",
             role: "admin"
         }
         await createAdminService(adminData);

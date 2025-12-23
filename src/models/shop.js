@@ -9,6 +9,7 @@ const shopSchema = new mongoose.Schema({
     
     // Ảnh bìa (Lấy url từ res_photos)
     coverImage: { type: String, default: "" }, 
+    qrImage: { type: String, default: "" }, // Ảnh QR code thanh toán
 
     photos: [
         {

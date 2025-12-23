@@ -53,14 +53,36 @@ export const updateDelivery = async (req, res, next) => {
     
     // TRƯỜNG HỢP 2: Tài xế cập nhật hành trình (Đang lấy hàng, Đang giao...)
     else {
-      // Các trạng thái hợp lệ: PICKING_UP, DELIVERING, COMPLETED, CANCELLED
-      // Gọi service update thông thường
       result = await deliveryService.updateStatus(id, status, userId, location);
       message = 'Cập nhật trạng thái đơn hàng thành công';
       
-      // TODO: Emit Socket.io ở đây để báo cho khách hàng
-      if (req.io) {
-          req.io.to(`order:${result.orderId.toString()}`).emit('DELIVERY_UPDATED', result);
+      // 👇 SỬA ĐOẠN NÀY
+      if (location && result) {
+          try {
+              const io = getIO(); 
+              
+              // 1. Lấy Order ID chuẩn
+              const orderId = result.orderId._id ? result.orderId._id.toString() : result.orderId.toString();
+
+              // 2. Payload dữ liệu
+              const payload = {
+                  lat: location.lat,
+                  lng: location.lng,
+                  deliveryId: id
+              };
+
+              // 3. BẮN SOCKET (Fix lệch room)
+              // Bắn vào Room Raw (đề phòng Frontend join raw)
+              io.to(orderId).emit('SHIPPER_MOVED', payload);
+              
+              // Bắn thêm vào Room có prefix 'order:' (đề phòng Frontend join prefix)
+              io.to(`order:${orderId}`).emit('SHIPPER_MOVED', payload);
+              
+              console.log(`📡 [Socket] Đã bắn vị trí tới room ${orderId} và order:${orderId}`);
+
+          } catch (socketErr) {
+              console.error("⚠️ Lỗi Socket:", socketErr.message);
+          }
       }
     }
 

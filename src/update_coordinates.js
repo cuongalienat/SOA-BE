@@ -17,16 +17,16 @@ const updateLocations = async () => {
         // Nếu chưa có tọa độ hoặc tọa độ là [0,0]
         if (shop.location.coordinates[0] === 0) {
             console.log(`⏳ Đang lấy tọa độ cho: ${shop.name} (${shop.address})...`);
-            
+
             const coords = await getCoordinates(shop.address);
-            
+
             if (coords) {
                 // Lưu GeoJSON: [Longitude, Latitude] (Goong trả về lat, lng nên phải đảo ngược)
                 shop.location.coordinates = [coords.lng, coords.lat];
                 await shop.save();
-                console.log(`   ✅ Updated: [${coords.lng}, ${coords.lat}]`);
+                console.log(`✅ Updated: [${coords.lng}, ${coords.lat}]`);
             } else {
-                console.log(`   ❌ Không tìm thấy tọa độ.`);
+                console.log(`❌ Không tìm thấy tọa độ.`);
             }
         }
     }
