@@ -1,0 +1,60 @@
+
+name: Node.js CI/CD with Docker
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  # Job 1: Chạy Test trước
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    # Cài đặt Node.js
+    - name: Use Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+        
+    # Cài dependencies
+    - name: Install dependencies
+      run: npm ci 
+      
+    # CHẠY TEST Ở ĐÂY
+    # Nếu test fail, quy trình sẽ dừng lại, không Build Docker
+    - name: Run Tests
+      run: npm test
+
+  # Job 2: Build & Push Docker (Chỉ chạy nếu Job test thành công)
+  build-and-push:
+    needs: test # Bắt buộc phải đợi job test xong và thành công
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # Chỉ build docker khi merge code (không build ở pull request để tiết kiệm)
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Login Docker Hub (Yêu cầu config Secrets trên Github repo)
+    # - name: Login to Docker Hub
+    #   uses: docker/login-action@v3
+    #   with:
+    #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+    #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false # Đổi thành true khi đã cấu hình secret xong
+        tags: user/soa-be:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
