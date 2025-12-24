@@ -39,39 +39,66 @@ const assignShipper = async (deliveryId, userId, location) => {
   }
 
   // C. Self-Healing: Kiểm tra nếu đang kẹt đơn
-  if (shipperProfile.status === 'SHIPPING') {
-      const currentJob = await DeliveryModel.findOne({
-        shipperId: userId, // Delivery vẫn lưu UserID để dễ populate
-        status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
-      });
+  // if (shipperProfile.status === 'SHIPPING') {
+  //     const currentJob = await DeliveryModel.findOne({
+  //       shipperId: userId, // Delivery vẫn lưu UserID để dễ populate
+  //       status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+  //     });
 
-      if (currentJob) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, 'Bạn đang có đơn hàng chưa hoàn thành!');
-      } else {
-        // Tự sửa lỗi trạng thái ảo
-        console.warn(`⚠️ Auto-fixing status for shipper ${userId}`);
-        shipperProfile.status = 'ONLINE';
-        await shipperProfile.save();
-      }
+  //     if (currentJob) {
+  //       throw new ApiError(StatusCodes.BAD_REQUEST, 'Bạn đang có đơn hàng chưa hoàn thành!');
+  //     } else {
+  //       // Tự sửa lỗi trạng thái ảo
+  //       console.warn(`⚠️ Auto-fixing status for shipper ${userId}`);
+  //       shipperProfile.status = 'ONLINE';
+  //       await shipperProfile.save();
+  //     }
+  // }
+  // C. Check số lượng đơn
+  const MAX_BATCH_SIZE = 3;
+  const activeJobsCount = await DeliveryModel.countDocuments({
+      shipperId: userId,
+      status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+  });
+
+  if (activeJobsCount >= MAX_BATCH_SIZE) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, `Bạn đã nhận tối đa ${MAX_BATCH_SIZE} đơn! Hãy giao bớt để nhận thêm.`);
   }
 
-  // D. ATOMIC UPDATE (Khóa đơn & Lưu vị trí lúc nhận)
+
+  // // D. ATOMIC UPDATE (Khóa đơn & Lưu vị trí lúc nhận)
+  // const updatedDelivery = await DeliveryModel.findOneAndUpdate(
+  //   {
+  //     _id: deliveryId,
+  //     status: 'SEARCHING' // 🔒 Chốt chặn: Chỉ nhận nếu đơn đang tìm
+  //   },
+  //   {
+  //     $set: { 
+  //         status: 'ASSIGNED', 
+  //         shipperId: userId // Lưu UserID
+  //     },
+  //     $push: {
+  //       trackingLogs: { 
+  //           status: 'ASSIGNED', 
+  //           updatedBy: userId, 
+  //           location: location, // 📍 Lưu tọa độ GPS lúc bấm nút nhận
+  //           note: "Tài xế đã nhận đơn" 
+  //       }
+  //     }
+  //   },
+  //   { new: true }
+  // );
+
   const updatedDelivery = await DeliveryModel.findOneAndUpdate(
+    { _id: deliveryId, status: 'SEARCHING' },
     {
-      _id: deliveryId,
-      status: 'SEARCHING' // 🔒 Chốt chặn: Chỉ nhận nếu đơn đang tìm
-    },
-    {
-      $set: { 
-          status: 'ASSIGNED', 
-          shipperId: userId // Lưu UserID
-      },
+      $set: { status: 'ASSIGNED', shipperId: userId },
       $push: {
         trackingLogs: { 
             status: 'ASSIGNED', 
             updatedBy: userId, 
-            location: location, // 📍 Lưu tọa độ GPS lúc bấm nút nhận
-            note: "Tài xế đã nhận đơn" 
+            location: location,
+            note: `Đơn ghép #${activeJobsCount + 1}` 
         }
       }
     },
@@ -83,14 +110,13 @@ const assignShipper = async (deliveryId, userId, location) => {
   }
 
   // E. Cập nhật trạng thái Shipper -> BẬN
-  shipperProfile.status = 'SHIPPING';
-  await shipperProfile.save();
+  if (shipperProfile.status !== 'SHIPPING') {
+      shipperProfile.status = 'SHIPPING';
+      await shipperProfile.save();
+  }
 
-  // F. Cập nhật Order (Để User biết ai ship)
-  await OrderModel.findByIdAndUpdate(updatedDelivery.orderId, {
-    shipper: userId, // Gán UserID
-    // status: 'Confirmed' // Giữ nguyên Confirmed hoặc update tùy flow
-  });
+  // F. Update Order
+  await OrderModel.findByIdAndUpdate(updatedDelivery.orderId, { shipper: userId });
 
   return updatedDelivery;
 };
@@ -154,24 +180,50 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
     await OrderModel.findByIdAndUpdate(delivery.orderId, { status: orderStatus });
   }
 
+  // cái này là logic cũ chưa ghép đơn
   // Nếu hoàn thành hoặc hủy -> Giải phóng tài xế về ONLINE
+  // if (['COMPLETED', 'CANCELLED'].includes(newStatus)) {
+  //   // ⚠️ Update bảng Shipper, không phải User
+  //   await Shipper.findOneAndUpdate(
+  //       { user: userId },
+  //       { status: 'ONLINE' }
+  //   );
+  // }
+
+  // chỉ giải phóng tài xế khi không còn đơn nào đang giao nữa
   if (['COMPLETED', 'CANCELLED'].includes(newStatus)) {
-    // ⚠️ Update bảng Shipper, không phải User
-    await Shipper.findOneAndUpdate(
-        { user: userId },
-        { status: 'ONLINE' }
-    );
+      const remainingJobs = await DeliveryModel.countDocuments({
+          shipperId: userId,
+          status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] },
+          _id: { $ne: deliveryId } // Trừ đơn hiện tại ra
+      });
+
+      if (remainingJobs === 0) {
+          console.log(`✅ Shipper ${userId} đã hết đơn, về trạng thái ONLINE.`);
+          await Shipper.findOneAndUpdate({ user: userId }, { status: 'ONLINE' });
+      } else {
+          console.log(`📦 Shipper ${userId} vẫn còn ${remainingJobs} đơn khác đang giao.`);
+      }
   }
 
   return updatedDelivery;
 };
 
-// 5. Lấy đơn hiện tại của Shipper
-const getCurrentDelivery = async (userId) => {
-  return await DeliveryModel.findOne({
+// // 5. Lấy đơn hiện tại của Shipper (đây là đơn lẻ, chưa ghép)
+// const getCurrentDelivery = async (userId) => {
+//   return await DeliveryModel.findOne({
+//     shipperId: userId,
+//     status: { $in: ['ASSIGNED','PICKING_UP', 'DELIVERING'] }
+//   }).populate('orderId'); 
+// };
+
+// 5. Lấy danh sách đơn hiện tại của Shipper (Có ghép đơn)
+const getActiveDeliveries = async (userId) => {
+  return await DeliveryModel.find({ // 👉 Dùng find() trả về Mảng
     shipperId: userId,
-    status: { $in: ['ASSIGNED','PICKING_UP', 'DELIVERING'] }
-  }).populate('orderId'); 
+    status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+  }).populate('orderId')
+    .sort({ createdAt: 1 }); // Đơn nào nhận trước hiện trước
 };
 
 // 6. Shipper tìm đơn quanh mình (Polling)
@@ -298,7 +350,8 @@ export const deliveryService = {
   getDeliveryById,
   assignShipper,
   updateStatus,
-  getCurrentDelivery,
+  // getCurrentDelivery,
+  getActiveDeliveries,
   getNearbyDeliveries,
   createDeliveryForOrder
 };
