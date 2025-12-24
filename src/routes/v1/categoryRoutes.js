@@ -6,6 +6,7 @@ import {
 	deleteCategory,
 	getCategories,
 	updateCategory,
+	getCategoriesByShop,
 } from "../../controllers/categoryController.js";
 
 const router = express.Router();
@@ -15,5 +16,6 @@ router.get("/", authMiddleware, isRestaurant, getCategories);
 router.post("/", authMiddleware, isRestaurant, createCategory);
 router.put("/:id", authMiddleware, isRestaurant, updateCategory);
 router.delete("/:id", authMiddleware, isRestaurant, deleteCategory);
+router.get("/shop/:shopId", authMiddleware, getCategoriesByShop);
 
 export default router;

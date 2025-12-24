@@ -75,3 +75,16 @@ export const deleteCategory = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getCategoriesByShop = async (req, res, next) => {
+  try {
+    const categories = await categoryServices.getCategoriesByShopId(req.params.shopId);
+
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data: categories,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
