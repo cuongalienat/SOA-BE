@@ -1,6 +1,6 @@
 import express from 'express';
 import { authMiddleware } from '../../middlewares/authMiddlewares.js';
-import { createRating, getRatingsByShop } from '../../controllers/ratingController.js';
+import { createRating, getRatingsByShop, getRatingsByItem, getRatingByOrderId } from '../../controllers/ratingController.js';
 
 const router = express.Router();
 
@@ -17,5 +17,19 @@ router.post('/', authMiddleware, createRating);
  * @access Public
  */
 router.get('/shop/:shopId', getRatingsByShop);
+
+/**
+ * @route GET /v1/ratings/item/:itemId
+ * @description Get all ratings for a specific item with pagination.
+ * @access Public
+ */
+router.get('/item/:itemId', getRatingsByItem);
+
+/**
+ * @route GET /v1/ratings/order/:orderId
+ * @description Get rating by order ID.
+ * @access Public
+ */
+router.get('/order/:orderId', getRatingByOrderId);
 
 export default router;

@@ -17,7 +17,7 @@ const updateShopRatingStats = async (shopId) => {
             $group: {
                 _id: '$shop', // Nhóm theo shopId
                 averageRating: { $avg: '$stars' }, // Tính giá trị trung bình của trường 'stars'
-                totalRatings: { $sum: 1 } 
+                totalRatings: { $sum: 1 }
             }
         }
     ]);
@@ -25,7 +25,7 @@ const updateShopRatingStats = async (shopId) => {
     if (stats.length > 0) {
         const { averageRating, totalRatings } = stats[0];
         await Shop.findByIdAndUpdate(shopId, {
-            averageRating: averageRating.toFixed(1), 
+            averageRating: averageRating.toFixed(1),
             totalRatings: totalRatings
         });
     } else {
@@ -51,13 +51,13 @@ export const createRatingService = async (userId, ratingData) => {
     if (!order) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Order not found.");
     }
-    if (order.user.toString() !== userId) {
+    if (order.user.toString() !== userId.toString()) {
         throw new ApiError(StatusCodes.FORBIDDEN, "You can only rate your own orders.");
     }
     if (order.status !== 'Delivered') {
         throw new ApiError(StatusCodes.BAD_REQUEST, "You can only rate completed orders.");
     }
-    
+
     if (order.rating) {
         throw new ApiError(StatusCodes.CONFLICT, "This order has already been rated.");
     }
@@ -110,4 +110,89 @@ export const getRatingsByShopService = async (shopId, options = {}) => {
             totalItems: totalRatings,
         },
     };
+};
+
+/**
+ * Service để lấy danh sách các đánh giá của một món ăn (dựa trên order history).
+ * @param {string} itemId - ID của món ăn.
+ * @param {object} options - Tùy chọn phân trang { page, limit }.
+ * @returns {Promise<object>} - Đối tượng chứa dữ liệu và thông tin phân trang.
+ */
+export const getRatingsByItemService = async (itemId, options = {}) => {
+    const page = parseInt(options.page) || 1;
+    const limit = parseInt(options.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const pipeline = [
+        {
+            $lookup: {
+                from: 'orders',
+                localField: 'order',
+                foreignField: '_id',
+                as: 'orderDetail'
+            }
+        },
+        { $unwind: '$orderDetail' },
+        {
+            $match: {
+                'orderDetail.items.item': new mongoose.Types.ObjectId(itemId)
+            }
+        },
+        {
+            $facet: {
+                data: [
+                    { $sort: { createdAt: -1 } },
+                    { $skip: skip },
+                    { $limit: limit },
+                    {
+                        $lookup: {
+                            from: 'users',
+                            localField: 'user',
+                            foreignField: '_id',
+                            as: 'userDetails'
+                        }
+                    },
+                    { $unwind: '$userDetails' },
+                    {
+                        $project: {
+                            _id: 1,
+                            stars: 1,
+                            comment: 1,
+                            createdAt: 1,
+                            user: {
+                                _id: '$userDetails._id',
+                                name: '$userDetails.fullName'
+                            }
+                        }
+                    }
+                ],
+                totalCount: [
+                    { $count: 'count' }
+                ]
+            }
+        }
+    ];
+
+    const results = await Rating.aggregate(pipeline);
+
+    // Aggregate returns an array, and due to $facet, results[0] contains our streams
+    // Need to handle case where results might be empty (unlikely with facet but possible structure)
+    const data = results[0]?.data || [];
+    const totalRatings = results[0]?.totalCount[0]?.count || 0;
+    const totalPages = Math.ceil(totalRatings / limit);
+
+    return {
+        data,
+        pagination: {
+            currentPage: page,
+            limit,
+            totalPages,
+            totalItems: totalRatings,
+        },
+    };
+};
+
+export const getRatingByOrderIdService = async (orderId) => {
+    const rating = await Rating.findOne({ order: orderId });
+    return { data: rating };
 };
