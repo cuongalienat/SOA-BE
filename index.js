@@ -45,39 +45,39 @@ io.on('connection', (socket) => {
     //     socket.join(roomName);
     //     console.log(`Socket ${socket.id} joined room: ${roomName}`);
     // });
-    
+
     // Logic cũ: Cập nhật vị trí xe
     socket.on('UPDATE_LOCATION', (data) => {
         const { orderId, lat, lng } = data;
         io.to(`order:${orderId}`).emit('SHIPPER_MOVED', { lat, lng });
     });
-    
+
     // 👇 THÊM LOGIC MỚI: Để tìm Shipper
     // Khi shipper login, frontend shipper sẽ gửi userId lên để server biết socket.id nào là của ông nào
     const { userId, role, shopId } = socket.handshake.query;
     if (userId) {
-      // 1. CHUẨN HÓA TÊN ROOM: Luôn dùng prefix "user:"
-      const userRoom = `user:${userId}`;
-      socket.join(userRoom);
-      console.log(`✅ User ${userId} joined room: [${userRoom}]`);
+        // 1. CHUẨN HÓA TÊN ROOM: Luôn dùng prefix "user:"
+        const userRoom = `user:${userId}`;
+        socket.join(userRoom);
+        console.log(`✅ User ${userId} joined room: [${userRoom}]`);
 
-      // 2. Phân loại Role để join room chức năng
-      if (role === 'shipper' || role === 'driver') {
-        // NẾU em muốn thông báo cho "Tất cả shipper", hãy đặt tên là 'role:shippers' (không có Id)
-        // NẾU em muốn thông báo riêng cho shipper đó -> Dùng `user:${userId}` là đủ.
-        socket.join('role:shippers');
-        console.log(`🛵 Shipper joined fleet room: [role:shippers]`);
-      }
-      
-      if (role === 'restaurant_manager') {
-        if (shopId && shopId !== 'undefined') { // Check kỹ vì query param đôi khi gửi string "undefined"
-            const shopRoom = `shop:${shopId}`;
-            socket.join(shopRoom);
-            console.log(`🏪 Shop Owner joined room: [${shopRoom}]`);
-        } else {
-            console.warn(`⚠️ Manager ${userId} connected but NO SHOP_ID provided!`);
+        // 2. Phân loại Role để join room chức năng
+        if (role === 'shipper' || role === 'driver') {
+            // NẾU em muốn thông báo cho "Tất cả shipper", hãy đặt tên là 'role:shippers' (không có Id)
+            // NẾU em muốn thông báo riêng cho shipper đó -> Dùng `user:${userId}` là đủ.
+            socket.join('role:shippers');
+            console.log(`🛵 Shipper joined fleet room: [role:shippers]`);
         }
-    }
+
+        if (role === 'restaurant_manager') {
+            if (shopId && shopId !== 'undefined') { // Check kỹ vì query param đôi khi gửi string "undefined"
+                const shopRoom = `shop:${shopId}`;
+                socket.join(shopRoom);
+                console.log(`🏪 Shop Owner joined room: [${shopRoom}]`);
+            } else {
+                console.warn(`⚠️ Manager ${userId} connected but NO SHOP_ID provided!`);
+            }
+        }
     }
     socket.on('disconnect', () => {
         // console.log('User Disconnected', socket.id);
@@ -94,8 +94,11 @@ app.get('/', (req, res) => {
 app.use(errorHandlingMiddleware);
 
 // 6. QUAN TRỌNG: Thay app.listen bằng server.listen
-server.listen(env.LOCAL_DEV_APP_PORT, env.LOCAL_DEV_APP_HOST, () => {
-    console.log(`🚀 Server & Socket running on http://${env.LOCAL_DEV_APP_HOST}:${env.LOCAL_DEV_APP_PORT}`)
+const port = env.LOCAL_DEV_APP_PORT || process.env.PORT || 8017;
+const host = env.LOCAL_DEV_APP_HOST || '0.0.0.0';
+
+server.listen(port, host, () => {
+    console.log(`🚀 Server & Socket running on http://${host}:${port}`)
 })
 
 
