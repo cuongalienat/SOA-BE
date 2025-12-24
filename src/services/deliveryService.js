@@ -7,6 +7,7 @@ import { StatusCodes } from 'http-status-codes';
 import { calculateDistance } from '../utils/mapUtils.js';
 import { findNearbyShippers } from "./shipperServices.js";
 import { env } from "../config/environment.js";
+import { getIO } from '../utils/socket.js';
 
 // 1. Tạo chuyến giao hàng mới (Basic)
 const createDelivery = async (deliveryData) => {
@@ -177,7 +178,29 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
   }
 
   if (orderStatus) {
-    await OrderModel.findByIdAndUpdate(delivery.orderId, { status: orderStatus });
+    const updatedOrder = await OrderModel.findByIdAndUpdate(
+      delivery.orderId,
+      { status: orderStatus },
+      { new: true }
+    )
+      .select('_id shop user status updatedAt')
+      .lean();
+
+    // Emit realtime status update to Shop only when delivery completed
+    if (newStatus === 'COMPLETED' && updatedOrder?.shop) {
+      try {
+        const io = getIO();
+        io.to(`shop:${updatedOrder.shop.toString()}`).emit('ORDER_STATUS_UPDATE', {
+          orderId: updatedOrder._id,
+          status: updatedOrder.status,
+          deliveryStatus: newStatus,
+          updatedAt: updatedOrder.updatedAt,
+          msg: 'Đơn hàng đã giao thành công'
+        });
+      } catch (socketErr) {
+        console.error('⚠️ Lỗi bắn socket ORDER_STATUS_UPDATE:', socketErr.message);
+      }
+    }
   }
 
   // cái này là logic cũ chưa ghép đơn
