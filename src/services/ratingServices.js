@@ -93,7 +93,7 @@ export const getRatingsByShopService = async (shopId, options = {}) => {
     const queryConditions = { shop: shopId };
 
     const ratings = await Rating.find(queryConditions)
-        .populate('user', 'name') // Lấy thông tin 'name' của người dùng đã đánh giá
+        .populate('user', 'fullName') // Lấy thông tin 'fullName' của người dùng đã đánh giá
         .sort({ createdAt: -1 }) // Sắp xếp các đánh giá mới nhất lên đầu
         .skip(skip)
         .limit(limit);

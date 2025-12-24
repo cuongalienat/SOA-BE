@@ -7,6 +7,7 @@ import {
   getMyShop,
   getMyShopDashboard,
   updateMyShop,
+  patchMyShop,
   updateShopStatus,
   getAllShops,
   getShopByID,
@@ -34,6 +35,9 @@ router.put(
   ]),
   updateMyShop
 );
+
+// RESTful: partial update for my shop (e.g. isOpen, autoAccept)
+router.patch("/my-shop", authMiddleware, isRestaurant, patchMyShop);
 
 router.patch("/my-shop/status", authMiddleware, isRestaurant, updateShopStatus);
 
