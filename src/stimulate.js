@@ -4,12 +4,12 @@ import polyline from '@mapbox/polyline'; // Nhớ npm install ở backend folder
 import dotenv from "dotenv";
 dotenv.config();
 
-const DELIVERY_ID = "69490c403dd98a3edabc2d47"; 
-const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzdkZmUwMDIxMTk2ZTkxYmQ5N2Y4NiIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE3NjYzNzU5MTUsImV4cCI6MTc2NjQ2MjMxNX0.i5FmCGhQsTgAk8Fjbd4_0QMvenKUlQZye8U-6KNf4SY"; 
+const DELIVERY_ID = "694bf805b7b1ad31f9bcbc87"; 
+const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MzdkZmUwMDIxMTk2ZTkxYmQ5N2Y4NiIsInJvbGUiOiJkcml2ZXIiLCJpYXQiOjE3NjY1Nzg4ODgsImV4cCI6MTc2NjY2NTI4OH0.wagZQ4-ckMnOK0az2K59C9isOfMnp-4ik034yaLXAK8"; 
 const GOONG_API_KEY = process.env.GOONG_API_KEY;
 
 const START_POINT = { lat: 20.99867431900003, lng: 105.82302730300006 }; 
-const END_POINT = { lat: 21.02298121700005, lng: 105.77451449100005 };
+const END_POINT = { lat: 21.007762892000073, lng: 105.82385848800004 };
 
 
 const runRealSimulation = async () => {
