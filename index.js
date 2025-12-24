@@ -98,7 +98,7 @@ const port = env.LOCAL_DEV_APP_PORT || process.env.PORT || 8017;
 const host = env.LOCAL_DEV_APP_HOST || '0.0.0.0';
 
 server.listen(port, host, () => {
-    console.log(`🚀 Server & Socket running on http://${host}:${port}`)
+    console.log(`🚀 Server & Socket running on port ${port}`)
 })
 
 

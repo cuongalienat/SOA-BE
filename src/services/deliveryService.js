@@ -7,6 +7,7 @@ import { StatusCodes } from 'http-status-codes';
 import { calculateDistance } from '../utils/mapUtils.js';
 import { findNearbyShippers } from "./shipperServices.js";
 import { env } from "../config/environment.js";
+import { createTransactionAdminToShipper, createTransactionAdminToShop } from './walletServices.js';
 
 // 1. Tạo chuyến giao hàng mới (Basic)
 const createDelivery = async (deliveryData) => {
@@ -28,7 +29,7 @@ const assignShipper = async (deliveryId, userId, location) => {
 
   // A. Tìm hồ sơ trong bảng Shipper (Không tìm trong User)
   const shipperProfile = await Shipper.findOne({ user: userId });
-  
+
   if (!shipperProfile) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Bạn chưa đăng ký hồ sơ tài xế (Xe/Biển số).');
   }
@@ -57,12 +58,12 @@ const assignShipper = async (deliveryId, userId, location) => {
   // C. Check số lượng đơn
   const MAX_BATCH_SIZE = 3;
   const activeJobsCount = await DeliveryModel.countDocuments({
-      shipperId: userId,
-      status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
+    shipperId: userId,
+    status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] }
   });
 
   if (activeJobsCount >= MAX_BATCH_SIZE) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, `Bạn đã nhận tối đa ${MAX_BATCH_SIZE} đơn! Hãy giao bớt để nhận thêm.`);
+    throw new ApiError(StatusCodes.BAD_REQUEST, `Bạn đã nhận tối đa ${MAX_BATCH_SIZE} đơn! Hãy giao bớt để nhận thêm.`);
   }
 
 
@@ -94,11 +95,11 @@ const assignShipper = async (deliveryId, userId, location) => {
     {
       $set: { status: 'ASSIGNED', shipperId: userId },
       $push: {
-        trackingLogs: { 
-            status: 'ASSIGNED', 
-            updatedBy: userId, 
-            location: location,
-            note: `Đơn ghép #${activeJobsCount + 1}` 
+        trackingLogs: {
+          status: 'ASSIGNED',
+          updatedBy: userId,
+          location: location,
+          note: `Đơn ghép #${activeJobsCount + 1}`
         }
       }
     },
@@ -111,8 +112,8 @@ const assignShipper = async (deliveryId, userId, location) => {
 
   // E. Cập nhật trạng thái Shipper -> BẬN
   if (shipperProfile.status !== 'SHIPPING') {
-      shipperProfile.status = 'SHIPPING';
-      await shipperProfile.save();
+    shipperProfile.status = 'SHIPPING';
+    await shipperProfile.save();
   }
 
   // F. Update Order
@@ -126,6 +127,7 @@ const assignShipper = async (deliveryId, userId, location) => {
 // ============================================================
 const updateStatus = async (deliveryId, newStatus, userId, location) => {
   const delivery = await DeliveryModel.findById(deliveryId);
+  const order = await OrderModel.findById(delivery.orderId);
   if (!delivery) throw new ApiError(StatusCodes.NOT_FOUND, 'Delivery not found');
 
   // Validate luồng trạng thái
@@ -143,22 +145,22 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
   }
 
   const updateData = {
-      $set: { status: newStatus },
-      $push: {
-        trackingLogs: {
-          status: newStatus,
-          updatedBy: userId,
-          location: location,
-          timestamp: new Date()
-        }
+    $set: { status: newStatus },
+    $push: {
+      trackingLogs: {
+        status: newStatus,
+        updatedBy: userId,
+        location: location,
+        timestamp: new Date()
       }
+    }
   };
 
   if (location) {
-      updateData.$set.currentShipperLocation = {
-          type: 'Point',
-          coordinates: [location.lng, location.lat] // GeoJSON: [Lng, Lat]
-      };
+    updateData.$set.currentShipperLocation = {
+      type: 'Point',
+      coordinates: [location.lng, location.lat] // GeoJSON: [Lng, Lat]
+    };
   }
 
   const updatedDelivery = await DeliveryModel.findByIdAndUpdate(
@@ -171,14 +173,19 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
   let orderStatus = '';
   switch (newStatus) {
     case 'PICKING_UP': orderStatus = 'Preparing'; break;
-    case 'DELIVERING': orderStatus = 'Shipping'; break; 
+    case 'DELIVERING': orderStatus = 'Shipping'; break;
     case 'COMPLETED': orderStatus = 'Delivered'; break;
     case 'CANCELLED': orderStatus = 'Pending'; break;
   }
 
   if (orderStatus) {
     await OrderModel.findByIdAndUpdate(delivery.orderId, { status: orderStatus });
+    if (orderStatus === 'Delivered' && order.payment !== null) {
+      await createTransactionAdminToShipper(delivery.shipperId, delivery.orderId);
+      await createTransactionAdminToShop(delivery.shopId, delivery.orderId);
+    }
   }
+
 
   // cái này là logic cũ chưa ghép đơn
   // Nếu hoàn thành hoặc hủy -> Giải phóng tài xế về ONLINE
@@ -192,18 +199,18 @@ const updateStatus = async (deliveryId, newStatus, userId, location) => {
 
   // chỉ giải phóng tài xế khi không còn đơn nào đang giao nữa
   if (['COMPLETED', 'CANCELLED'].includes(newStatus)) {
-      const remainingJobs = await DeliveryModel.countDocuments({
-          shipperId: userId,
-          status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] },
-          _id: { $ne: deliveryId } // Trừ đơn hiện tại ra
-      });
+    const remainingJobs = await DeliveryModel.countDocuments({
+      shipperId: userId,
+      status: { $in: ['ASSIGNED', 'PICKING_UP', 'DELIVERING'] },
+      _id: { $ne: deliveryId } // Trừ đơn hiện tại ra
+    });
 
-      if (remainingJobs === 0) {
-          console.log(`✅ Shipper ${userId} đã hết đơn, về trạng thái ONLINE.`);
-          await Shipper.findOneAndUpdate({ user: userId }, { status: 'ONLINE' });
-      } else {
-          console.log(`📦 Shipper ${userId} vẫn còn ${remainingJobs} đơn khác đang giao.`);
-      }
+    if (remainingJobs === 0) {
+      console.log(`✅ Shipper ${userId} đã hết đơn, về trạng thái ONLINE.`);
+      await Shipper.findOneAndUpdate({ user: userId }, { status: 'ONLINE' });
+    } else {
+      console.log(`📦 Shipper ${userId} vẫn còn ${remainingJobs} đơn khác đang giao.`);
+    }
   }
 
   return updatedDelivery;
@@ -228,121 +235,121 @@ const getActiveDeliveries = async (userId) => {
 
 // 6. Shipper tìm đơn quanh mình (Polling)
 export const getNearbyDeliveries = async (userId, radius = 50000) => {
-    // Tìm profile trong bảng Shipper để lấy tọa độ
-    const shipperProfile = await Shipper.findOne({ user: userId });
-    if (!shipperProfile) throw new ApiError(404, "Chưa đăng ký hồ sơ Shipper");
+  // Tìm profile trong bảng Shipper để lấy tọa độ
+  const shipperProfile = await Shipper.findOne({ user: userId });
+  if (!shipperProfile) throw new ApiError(404, "Chưa đăng ký hồ sơ Shipper");
 
-    // Query GeoSpatial dựa trên tọa độ của Shipper
-    return await DeliveryModel.find({
-        status: 'SEARCHING',
-        'pickup.location': {
-            $near: {
-                $geometry: {
-                    type: "Point",
-                    // 👇 Lấy từ shipperProfile.currentLocation
-                    coordinates: shipperProfile.currentLocation.coordinates 
-                },
-                $maxDistance: radius
-            }
-        }
-    }).sort({ createdAt: -1 });
+  // Query GeoSpatial dựa trên tọa độ của Shipper
+  return await DeliveryModel.find({
+    status: 'SEARCHING',
+    'pickup.location': {
+      $near: {
+        $geometry: {
+          type: "Point",
+          // 👇 Lấy từ shipperProfile.currentLocation
+          coordinates: shipperProfile.currentLocation.coordinates
+        },
+        $maxDistance: radius
+      }
+    }
+  }).sort({ createdAt: -1 });
 };
 
 // ============================================================
 // 7. TẠO DELIVERY + TÌM TÀI XẾ (Có Socket & Goong)
 // ============================================================
 export const createDeliveryForOrder = async (fullOrder, io) => {
-    const shop = fullOrder.shop;
-    const user = fullOrder.user;
+  const shop = fullOrder.shop;
+  const user = fullOrder.user;
 
   if (!fullOrder.customerLocation || fullOrder.customerLocation.lat == null || fullOrder.customerLocation.lng == null) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Thiếu toạ độ giao hàng (customerLocation).');
   }
-    
-    // A. Tính khoảng cách thực tế (Nếu có hàm calculateDistance)
-    let finalDistance = fullOrder.distance || 1000;
+
+  // A. Tính khoảng cách thực tế (Nếu có hàm calculateDistance)
+  let finalDistance = fullOrder.distance || 1000;
+  try {
+    // Nếu em muốn dùng Goong API, uncomment đoạn này và đảm bảo hàm chạy đúng
+    /*
+    const routingData = await calculateDistance(
+        shop.location.coordinates, 
+        fullOrder.deliveryLocation.coordinates
+    );
+    if(routingData?.distance) finalDistance = routingData.distance;
+    */
+  } catch (e) {
+    console.warn("Lỗi tính distance, dùng mặc định");
+  }
+
+  // B. Tạo Delivery Record
+  const now = Date.now();
+  const matchingTtlMs = (env.DELIVERY_MATCH_TTL_SECONDS || 240) * 1000;
+
+  const newDelivery = await DeliveryModel.create({
+    orderId: fullOrder._id,
+    pickup: {
+      name: shop.name,
+      address: shop.address,
+      phones: [shop.phones?.[0] || 'N/A'],
+      location: shop.location // Shop model có GeoJSON
+    },
+    dropoff: {
+      name: user?.fullName || "Khách hàng",
+      address: fullOrder.address,
+      phone: fullOrder.contactPhone,
+      location: {
+        type: 'Point',
+        // Quan trọng: Mongo GeoJSON là [Lng, Lat]
+        // Lấy từ customerLocation trong Order
+        coordinates: [fullOrder.customerLocation.lng, fullOrder.customerLocation.lat]
+      }
+    },
+    distance: finalDistance,
+    shippingFee: fullOrder.shippingFee,
+    estimatedDuration: fullOrder.estimatedDuration,
+    status: 'SEARCHING',
+    matchDeadline: new Date(now + matchingTtlMs),
+    matchAttempts: 1,
+    trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
+  });
+
+  // C. Bắn Socket tìm tài xế
+  if (io) {
     try {
-        // Nếu em muốn dùng Goong API, uncomment đoạn này và đảm bảo hàm chạy đúng
-        /*
-        const routingData = await calculateDistance(
-            shop.location.coordinates, 
-            fullOrder.deliveryLocation.coordinates
-        );
-        if(routingData?.distance) finalDistance = routingData.distance;
-        */
-    } catch (e) {
-        console.warn("Lỗi tính distance, dùng mặc định");
+      // Tìm các tài xế trong bảng Shipper
+      // Hàm này em viết trong shipperServices.js, phải query bảng Shipper
+      const availableShippers = await findNearbyShippers(shop.location.coordinates, 50000);
+
+      if (availableShippers && availableShippers.length > 0) {
+        const socketPayload = {
+          deliveryId: newDelivery._id,
+          shippingFee: newDelivery.shippingFee,
+          estimatedDuration: newDelivery.estimatedDuration,
+          distance: newDelivery.distance,
+          pickup: newDelivery.pickup.address,
+          dropoff: newDelivery.dropoff.address,
+          pickupLat: newDelivery.pickup.location.coordinates[1],
+          pickupLng: newDelivery.pickup.location.coordinates[0],
+          dropoffLat: newDelivery.dropoff.location.coordinates[1],
+          dropoffLng: newDelivery.dropoff.location.coordinates[0],
+          note: "Đơn hàng từ " + shop.name
+        };
+
+        availableShippers.forEach(shipperDoc => {
+          // shipperDoc là bản ghi trong bảng Shipper
+          // Cần lấy ID của User để emit (vì User connect socket bằng UserID)
+          const userIdToEmit = shipperDoc.user._id || shipperDoc.user;
+          io.to(`user:${userIdToEmit.toString()}`).emit('NEW_JOB', socketPayload);
+        });
+
+        console.log(`📡 Đã bắn đơn tới ${availableShippers.length} tài xế.`);
+      }
+    } catch (err) {
+      console.error("Lỗi socket tìm ship:", err);
     }
+  }
 
-    // B. Tạo Delivery Record
-    const now = Date.now();
-    const matchingTtlMs = (env.DELIVERY_MATCH_TTL_SECONDS || 240) * 1000;
-
-    const newDelivery = await DeliveryModel.create({
-        orderId: fullOrder._id,
-        pickup: {
-            name: shop.name,
-            address: shop.address,
-        phones: [shop.phones?.[0] || 'N/A'],
-            location: shop.location // Shop model có GeoJSON
-        },
-        dropoff: {
-            name: user?.fullName || "Khách hàng",
-            address: fullOrder.address,
-            phone: fullOrder.contactPhone,
-            location: {
-                type: 'Point',
-                // Quan trọng: Mongo GeoJSON là [Lng, Lat]
-                // Lấy từ customerLocation trong Order
-                coordinates: [fullOrder.customerLocation.lng, fullOrder.customerLocation.lat]
-            }
-        },
-        distance: finalDistance,
-        shippingFee: fullOrder.shippingFee,
-        estimatedDuration: fullOrder.estimatedDuration,
-        status: 'SEARCHING',
-        matchDeadline: new Date(now + matchingTtlMs),
-        matchAttempts: 1,
-        trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
-    });
-
-    // C. Bắn Socket tìm tài xế
-    if (io) {
-        try {
-            // Tìm các tài xế trong bảng Shipper
-            // Hàm này em viết trong shipperServices.js, phải query bảng Shipper
-            const availableShippers = await findNearbyShippers(shop.location.coordinates, 50000);
-
-            if (availableShippers && availableShippers.length > 0) {
-                const socketPayload = {
-                    deliveryId: newDelivery._id,
-                    shippingFee: newDelivery.shippingFee,
-                    estimatedDuration: newDelivery.estimatedDuration,
-                    distance: newDelivery.distance,
-                    pickup: newDelivery.pickup.address,
-                    dropoff: newDelivery.dropoff.address,
-                    pickupLat: newDelivery.pickup.location.coordinates[1],
-                    pickupLng: newDelivery.pickup.location.coordinates[0],
-                    dropoffLat: newDelivery.dropoff.location.coordinates[1],
-                    dropoffLng: newDelivery.dropoff.location.coordinates[0],
-                    note: "Đơn hàng từ " + shop.name
-                };
-
-                availableShippers.forEach(shipperDoc => {
-                    // shipperDoc là bản ghi trong bảng Shipper
-                    // Cần lấy ID của User để emit (vì User connect socket bằng UserID)
-                    const userIdToEmit = shipperDoc.user._id || shipperDoc.user;
-                    io.to(`user:${userIdToEmit.toString()}`).emit('NEW_JOB', socketPayload);
-                });
-                
-                console.log(`📡 Đã bắn đơn tới ${availableShippers.length} tài xế.`);
-            }
-        } catch (err) {
-            console.error("Lỗi socket tìm ship:", err);
-        }
-    }
-
-    return newDelivery;
+  return newDelivery;
 };
 
 export const deliveryService = {

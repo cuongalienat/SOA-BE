@@ -6,7 +6,8 @@ const mockCreateShopService = jest.fn();
 const mockGetShopByOwnerService = jest.fn();
 const mockGetMyShopDashboardService = jest.fn();
 const mockUpdateShopService = jest.fn();
-const mockUpdateShopStatusService = jest.fn();
+// const mockUpdateShopStatusService = jest.fn(); // Deprecated
+const mockPatchMyShopService = jest.fn(); // Added
 const mockGetAllShopsService = jest.fn();
 const mockGetShopDetailService = jest.fn();
 const mockGetShopByIDService = jest.fn();
@@ -17,7 +18,8 @@ jest.unstable_mockModule('../src/services/shopServices.js', () => ({
     getShopByOwnerService: mockGetShopByOwnerService,
     getMyShopDashboardService: mockGetMyShopDashboardService,
     updateShopService: mockUpdateShopService,
-    updateShopStatusService: mockUpdateShopStatusService,
+    // updateShopStatusService: mockUpdateShopStatusService,
+    patchMyShopService: mockPatchMyShopService, // Added
     getAllShopsService: mockGetAllShopsService,
     getShopDetailService: mockGetShopDetailService,
     getShopByIDService: mockGetShopByIDService,
@@ -98,9 +100,10 @@ describe('Shop Controller Tests', () => {
 
     it('updateShopStatus should success', async () => {
         req.body = { isOpen: true };
-        mockUpdateShopStatusService.mockResolvedValue({});
+        mockPatchMyShopService.mockResolvedValue({});
         await updateShopStatus(req, res, next);
-        expect(mockUpdateShopStatusService).toHaveBeenCalledWith('owner_1', true);
+        // Expect patchMyShopService to be called with object { isOpen: true }
+        expect(mockPatchMyShopService).toHaveBeenCalledWith('owner_1', { isOpen: true });
         expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
     });
 
