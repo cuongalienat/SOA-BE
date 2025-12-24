@@ -8,12 +8,16 @@ import { errorHandlingMiddleware } from './src/middlewares/errorHandlingMiddlewa
 import { morganMiddleware } from './src/config/morgan.js';
 import http from 'http'
 import { initSocket } from './src/utils/socket.js'
+import { startSlaJobs } from './src/jobs/slaJobs.js'
 
 
 const app = express()
 const server = http.createServer(app);
 
 const io = initSocket(server);
+
+// Start background SLA timers (auto-confirm/auto-cancel + delivery matching timeout)
+startSlaJobs(io);
 
 // Morgan 
 app.use(morganMiddleware);

@@ -44,16 +44,25 @@ export const getMyShopDashboardService = async (ownerId) => {
     const orderStats = await Order.aggregate([
         {
             $match: {
-                shop: shopId,
-                status: { $ne: "Canceled" }
+                shop: shopId
             }
         },
         {
             $group: {
                 _id: null,
-                revenue: { $sum: "$totalAmount" },
                 totalOrders: { $sum: 1 },
-                avgOrderValue: { $avg: "$totalAmount" }
+                deliveredOrders: {
+                    $sum: { $cond: [{ $eq: ["$status", "Delivered"] }, 1, 0] }
+                },
+                canceledOrders: {
+                    $sum: { $cond: [{ $eq: ["$status", "Canceled"] }, 1, 0] }
+                },
+                revenue: {
+                    $sum: { $cond: [{ $ne: ["$status", "Canceled"] }, "$totalAmount", 0] }
+                },
+                avgOrderValue: {
+                    $avg: { $cond: [{ $ne: ["$status", "Canceled"] }, "$totalAmount", null] }
+                }
             }
         }
     ]);
@@ -84,6 +93,8 @@ export const getMyShopDashboardService = async (ownerId) => {
         stats: {
             revenue: orderStats[0]?.revenue || 0,
             totalOrders: orderStats[0]?.totalOrders || 0,
+            deliveredOrders: orderStats[0]?.deliveredOrders || 0,
+            canceledOrders: orderStats[0]?.canceledOrders || 0,
             avgOrderValue: Math.round(orderStats[0]?.avgOrderValue || 0),
             rating: shop.rating?.avg || 0
         },
@@ -111,16 +122,25 @@ export const getShopDashboardService = async (shopId) => {
     const orderStats = await Order.aggregate([
         {
             $match: {
-                shop: shop._id,
-                status: { $ne: "Canceled" }
+                shop: shop._id
             }
         },
         {
             $group: {
                 _id: null,
-                revenue: { $sum: "$totalAmount" },
                 totalOrders: { $sum: 1 },
-                avgOrderValue: { $avg: "$totalAmount" }
+                deliveredOrders: {
+                    $sum: { $cond: [{ $eq: ["$status", "Delivered"] }, 1, 0] }
+                },
+                canceledOrders: {
+                    $sum: { $cond: [{ $eq: ["$status", "Canceled"] }, 1, 0] }
+                },
+                revenue: {
+                    $sum: { $cond: [{ $ne: ["$status", "Canceled"] }, "$totalAmount", 0] }
+                },
+                avgOrderValue: {
+                    $avg: { $cond: [{ $ne: ["$status", "Canceled"] }, "$totalAmount", null] }
+                }
             }
         }
     ]);
@@ -151,6 +171,8 @@ export const getShopDashboardService = async (shopId) => {
         stats: {
             revenue: orderStats[0]?.revenue || 0,
             totalOrders: orderStats[0]?.totalOrders || 0,
+            deliveredOrders: orderStats[0]?.deliveredOrders || 0,
+            canceledOrders: orderStats[0]?.canceledOrders || 0,
             avgOrderValue: Math.round(orderStats[0]?.avgOrderValue || 0),
             rating: shop.rating?.avg || 0
         },
@@ -275,5 +297,22 @@ export const getShopByIDService = async (shopId) => {
     if (!shop) {
         throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
     }
+    return shop;
+};
+
+export const patchMyShopService = async (ownerId, patchData) => {
+    const shop = await Shop.findOneAndUpdate(
+        { owner: ownerId },
+        { $set: patchData },
+        {
+            new: true,
+            runValidators: true,
+        }
+    );
+
+    if (!shop) {
+        throw new ApiError(StatusCodes.NOT_FOUND, "Shop not found");
+    }
+
     return shop;
 };

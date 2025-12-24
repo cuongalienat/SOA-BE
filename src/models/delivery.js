@@ -50,6 +50,10 @@ const DeliverySchema = new mongoose.Schema({
     index: true
   },
 
+  // SLA / Timeout finding shipper
+  matchDeadline: { type: Date, default: null, index: true },
+  matchAttempts: { type: Number, default: 1 },
+
   // Logs
   trackingLogs: [TrackingLogSchema]
 }, {
@@ -59,5 +63,8 @@ const DeliverySchema = new mongoose.Schema({
 
 // Index địa lý (Quan trọng)
 DeliverySchema.index({ "pickup.location": "2dsphere" });
+
+// Index for SLA matching scans
+DeliverySchema.index({ status: 1, matchDeadline: 1 });
 
 export default mongoose.model(DOCUMENT_NAME, DeliverySchema);

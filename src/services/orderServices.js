@@ -7,17 +7,17 @@ import Delivery from "../models/delivery.js";
 import { createTransactionUserToAdmin, createTransactionAdminToUser } from "./walletServices.js";
 import User from "../models/user.js";
 import { getCoordinates } from "./goongServices.js";
-import { findNearbyShippers } from "./shipperServices.js";
 import { getIO } from "../utils/socket.js";
 import { deliveryService } from "./deliveryService.js";
-import { distance } from "@turf/turf";
 import { calculateShippingFeeByDistance } from "./shippingServices.js";
+import { StatusCodes } from "http-status-codes";
+import { env } from "../config/environment.js";
 
 
 // 1. Tạo đơn hàng
 export const createOrderService = async (data) => {
   // userLocation bây giờ có thể chỉ chứa { address: "..." }
-  const { userId, shopId, items, paymentMethod, userLocation, distanceData, shippingFee } = data;
+  const { userId, shopId, items, paymentMethod, userLocation, distanceData } = data;
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -62,10 +62,15 @@ export const createOrderService = async (data) => {
 
     // --- 3. TÍNH KHOẢNG CÁCH & PHÍ SHIP ---
 
-    const finalTotal = calculatedTotalAmount + shippingFee;
+    // Chốt phí ship từ BE để tránh client tampering
+    const finalTotal = calculatedTotalAmount + shippingFeeBE;
     const user = await User.findById(userId);
     // --- 4. LƯU ORDER ---
     console.log("🚀 ~ createOrderService ~ finalTotal:", distanceData);
+    const now = Date.now();
+    const confirmTtlMs = (env.ORDER_CONFIRM_TTL_SECONDS || 300) * 1000;
+    const autoConfirmDelayMs = (env.ORDER_AUTO_CONFIRM_DELAY_SECONDS || 20) * 1000;
+
     const newOrder = new Order({
       user: userId,
       shop: shopId,
@@ -77,40 +82,43 @@ export const createOrderService = async (data) => {
       address: userLocation.address,
       contactPhone: user.phone,
       status: 'Pending',
-      payment: null
+      payment: null,
+      customerLocation: { lat: finalLat, lng: finalLng },
+      confirmDeadline: new Date(now + confirmTtlMs),
+      autoConfirmAt: (dbShop.isOpen && dbShop.autoAccept) ? new Date(now + autoConfirmDelayMs) : null
     });
 
     await newOrder.save({ session });
-    // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
-    const newDelivery = new Delivery({
-      orderId: newOrder._id,
-      pickup: {
-        name: dbShop.name,
-        address: dbShop.address,
-        phone: (dbShop.phones && dbShop.phones.length > 0) ? dbShop.phones[0] : (dbShop.phone || "N/A"),
-        location: {
-          type: 'Point',
-          coordinates: dbShop.location.coordinates
-        }
-      },
-      dropoff: {
-        name: userLocation.name || "Khách hàng",
-        address: userLocation.address,
-        phone: user.phone,
-        location: {
-          type: 'Point',
-          // 👇 Lưu ý: MongoDB GeoJSON lưu [Lng, Lat] (Lng trước)
-          coordinates: [finalLng, finalLat]
-        }
-      },
-      distance: distanceData.distanceValue,
-      shippingFee: shippingFee,
-      status: 'SEARCHING',
-      trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
-    });
+    // // --- 5. TẠO DELIVERY (Lưu toạ độ đã tìm được vào đây để vẽ Map) ---
+    // const newDelivery = new Delivery({
+    //   orderId: newOrder._id,
+    //   pickup: {
+    //     name: dbShop.name,
+    //     address: dbShop.address,
+    //     phone: (dbShop.phones && dbShop.phones.length > 0) ? dbShop.phones[0] : (dbShop.phone || "N/A"),
+    //     location: {
+    //       type: 'Point',
+    //       coordinates: dbShop.location.coordinates
+    //     }
+    //   },
+    //   dropoff: {
+    //     name: userLocation.name || "Khách hàng",
+    //     address: userLocation.address,
+    //     phone: user.phone,
+    //     location: {
+    //       type: 'Point',
+    //       // 👇 Lưu ý: MongoDB GeoJSON lưu [Lng, Lat] (Lng trước)
+    //       coordinates: [finalLng, finalLat]
+    //     }
+    //   },
+    //   distance: distanceData.distanceValue,
+    //   shippingFee: shippingFee,
+    //   status: 'SEARCHING',
+    //   trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
+    // });
 
-    await newDelivery.save({ session });
-    newOrder.delivery = newDelivery._id;
+    // await newDelivery.save({ session });
+    // newOrder.delivery = newDelivery._id;
 
     // --- 6. XỬ LÝ VÍ(NẾU CÓ)-- -
     let transactionRef = null;
@@ -119,9 +127,6 @@ export const createOrderService = async (data) => {
       const trans = await createTransactionUserToAdmin(userId, finalTotal, newOrder._id, session);
       transactionRef = trans._id;
     }
-
-    await newOrder.save({ session });
-
     newOrder.payment = transactionRef;
     await newOrder.save({ session });
     await session.commitTransaction();
@@ -131,9 +136,13 @@ export const createOrderService = async (data) => {
       const io = getIO();
 
       // Emit sự kiện mà FE Dashboard đang lắng nghe ('NEW_ORDER_TO_SHOP')
-      // Room name phải khớp với lúc FE join: `shop_${shopId}`
-      io.to(`shop:${shopId}`).emit('NEW_ORDER_TO_SHOP', newOrder);
-      console.log(`🔔 Đã bắn thông báo đơn mới tới shop_${shopId}`);
+      // Room name khớp với server join: `shop:${shopId}`
+      const orderForSocket = await Order.findById(newOrder._id)
+        .populate('user', 'fullName phone')
+        .populate('shop', 'name address')
+        .lean();
+      io.to(`shop:${shopId}`).emit('NEW_ORDER_TO_SHOP', orderForSocket);
+      console.log(`🔔 Đã bắn thông báo đơn mới tới shop:${shopId}`);
     } catch (socketError) {
       // Lỗi socket không được làm fail đơn hàng -> chỉ log ra thôi
       console.error("⚠️ Lỗi bắn socket cho Shop:", socketError.message);
@@ -173,16 +182,17 @@ export const createOrderService = async (data) => {
 
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
     throw error;
+  } finally {
+    session.endSession();
   }
 };
 
 // 2. Lấy chi tiết đơn
 export const getOrderByIdService = async (orderId) => {
   const order = await Order.findById(orderId)
-    .populate('user', 'name email phone address')
-    .populate('shop', 'name address phone')
+    .populate('user', 'fullName email phone address')
+    .populate('shop', 'name address phones')
     .populate('items.item', 'image description')
     .populate('payment')
     .populate('delivery');
@@ -230,7 +240,7 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
   }
 
   // 4. Validate Logic nghiệp vụ cũ (Đơn hủy không được sửa)
-  if (order.status === 'canceled' && normalizedStatus !== 'canceled') {
+  if (order.status === 'Canceled' && normalizedStatus !== 'canceled') {
     throw new ApiError(400, 'Không thể cập nhật đơn hàng đã bị hủy.');
   }
 
@@ -263,6 +273,9 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
   order.status = STATUS_MAP[normalizedStatus];
   await order.save();
 
+  // Đảm bảo dữ liệu trả về có đủ user/shop (tránh crash khi order.user là ObjectId)
+  await order.populate('user shop');
+
   // 6. Bắn Socket thông báo cho User (Khách hàng)
   if (io && order.user) {
     // Lưu ý: order.user có thể là object (do populate trên) hoặc id
@@ -283,15 +296,15 @@ export const updateOrderStatusService = async (orderId, newStatus, currentUser, 
 
     // Nếu cần thông tin user/shop cơ bản để hiển thị lại UI
     user: {
-      _id: order.user._id,
-      fullName: order.user.fullName,
-      phone: order.user.phone
+      _id: order.user?._id || order.user,
+      fullName: order.user?.fullName,
+      phone: order.user?.phone
     },
     shop: {
-      _id: order.shop._id,
-      name: order.shop.name,
-      address: order.shop.address,
-      location: order.shop.location
+      _id: order.shop?._id || order.shop,
+      name: order.shop?.name,
+      address: order.shop?.address,
+      location: order.shop?.location
     }
   };
 };
@@ -310,6 +323,7 @@ export const cancelOrderService = async (orderId, userId) => {
     }
 
     order.status = 'Canceled';
+    order.cancelReason = 'USER_CANCELLED';
     if (order.payment) {
       await createTransactionAdminToUser(order.user, order.totalAmount, order._id);
     }
@@ -337,21 +351,25 @@ export const cancelOrderService = async (orderId, userId) => {
 
 // 5. Lấy danh sách (giữ nguyên logic, chỉ thêm try catch nếu cần xử lý lỗi DB lạ)
 export const getOrdersService = async (filter = {}, page = 1, limit = 10) => {
-  const skip = (page - 1) * limit;
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNumRaw = parseInt(limit, 10) || 10;
+  const limitNum = Math.min(100, Math.max(1, limitNumRaw));
+  const skip = (pageNum - 1) * limitNum;
   const orders = await Order.find(filter)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(limit)
-    .populate('shop', 'name image')
-    .populate('user', 'name');
+    .limit(limitNum)
+    .populate('shop', 'name coverImage')
+    .populate('user', 'fullName phone');
 
   const total = await Order.countDocuments(filter);
 
   return {
     orders,
     total,
-    currentPage: page,
-    totalPages: Math.ceil(total / limit)
+    currentPage: pageNum,
+    totalPages: Math.ceil(total / limitNum),
+    limit: limitNum
   };
 };
 
