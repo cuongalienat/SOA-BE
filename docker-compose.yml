@@ -1,0 +1,16 @@
+
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: soa-be-app
+    ports:
+      - "${LOCAL_DEV_APP_PORT:-8017}:${LOCAL_DEV_APP_PORT:-8017}"
+    environment:
+      - LOCAL_DEV_APP_HOST=0.0.0.0
+      - LOCAL_DEV_APP_PORT=${LOCAL_DEV_APP_PORT:-8017}
+      - MONGODB_URI=${MONGODB_URI}
+      - DB_NAME=${DB_NAME}
+      # Thêm các biến môi trường khác ở đây nếu cần
+    restart: always
