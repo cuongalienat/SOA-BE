@@ -6,6 +6,7 @@ import ApiError from '../utils/ApiError.js';
 import { StatusCodes } from 'http-status-codes';
 import { calculateDistance } from '../utils/mapUtils.js';
 import { findNearbyShippers } from "./shipperServices.js";
+import { env } from "../config/environment.js";
 
 // 1. Tạo chuyến giao hàng mới (Basic)
 const createDelivery = async (deliveryData) => {
@@ -201,6 +202,10 @@ export const getNearbyDeliveries = async (userId, radius = 50000) => {
 export const createDeliveryForOrder = async (fullOrder, io) => {
     const shop = fullOrder.shop;
     const user = fullOrder.user;
+
+  if (!fullOrder.customerLocation || fullOrder.customerLocation.lat == null || fullOrder.customerLocation.lng == null) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Thiếu toạ độ giao hàng (customerLocation).');
+  }
     
     // A. Tính khoảng cách thực tế (Nếu có hàm calculateDistance)
     let finalDistance = fullOrder.distance || 1000;
@@ -218,12 +223,15 @@ export const createDeliveryForOrder = async (fullOrder, io) => {
     }
 
     // B. Tạo Delivery Record
+    const now = Date.now();
+    const matchingTtlMs = (env.DELIVERY_MATCH_TTL_SECONDS || 240) * 1000;
+
     const newDelivery = await DeliveryModel.create({
         orderId: fullOrder._id,
         pickup: {
             name: shop.name,
             address: shop.address,
-            phone: shop.phones?.[0],
+        phones: [shop.phones?.[0] || 'N/A'],
             location: shop.location // Shop model có GeoJSON
         },
         dropoff: {
@@ -241,6 +249,8 @@ export const createDeliveryForOrder = async (fullOrder, io) => {
         shippingFee: fullOrder.shippingFee,
         estimatedDuration: fullOrder.estimatedDuration,
         status: 'SEARCHING',
+        matchDeadline: new Date(now + matchingTtlMs),
+        matchAttempts: 1,
         trackingLogs: [{ status: 'SEARCHING', note: 'Đang tìm tài xế...' }]
     });
 

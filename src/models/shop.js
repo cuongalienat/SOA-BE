@@ -42,6 +42,8 @@ const shopSchema = new mongoose.Schema({
     }],
 
     isOpen: { type: Boolean, default: true },
+    // Auto accept order (giống Shopee/Grab): nếu bật + shop đang mở -> backend tự confirm sau 10-30s
+    autoAccept: { type: Boolean, default: false },
     tags: [{ type: String }],
     location: {
         type: {

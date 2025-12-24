@@ -81,6 +81,42 @@ export const updateMyShop = async (req, res, next) => {
 };
 
 
+export const patchMyShop = async (req, res, next) => {
+    try {
+        const { isOpen, autoAccept } = req.body;
+        const patchData = {};
+
+        if (isOpen !== undefined) {
+            if (typeof isOpen !== 'boolean') {
+                return res.status(StatusCodes.BAD_REQUEST).json({ message: "isOpen must be a boolean" });
+            }
+            patchData.isOpen = isOpen;
+        }
+
+        if (autoAccept !== undefined) {
+            if (typeof autoAccept !== 'boolean') {
+                return res.status(StatusCodes.BAD_REQUEST).json({ message: "autoAccept must be a boolean" });
+            }
+            patchData.autoAccept = autoAccept;
+        }
+
+        if (Object.keys(patchData).length === 0) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+                message: "At least one of isOpen or autoAccept is required",
+            });
+        }
+
+        const shop = await shopServices.patchMyShopService(req.user.id, patchData);
+        return res.status(StatusCodes.OK).json({
+            success: true,
+            data: shop,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 
 export const updateShopStatus = async (req, res, next) => {
     try {
@@ -91,7 +127,7 @@ export const updateShopStatus = async (req, res, next) => {
             return res.status(StatusCodes.BAD_REQUEST).json({ message: "isOpen must be a boolean" });
         }
 
-        const shop = await shopServices.updateShopStatusService(req.user.id, isOpen);
+        const shop = await shopServices.patchMyShopService(req.user.id, { isOpen });
         res.status(StatusCodes.OK).json({
             message: `Shop is now ${isOpen ? 'Open' : 'Closed'}`,
             shop

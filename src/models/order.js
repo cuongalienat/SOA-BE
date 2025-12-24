@@ -67,9 +67,25 @@ const orderSchema = new mongoose.Schema({
         default: 'Pending',
         required: true,
     },
+    // SLA / Timeout control
+    confirmDeadline: { type: Date, default: null, index: true },
+    autoConfirmAt: { type: Date, default: null, index: true },
+    cancelReason: {
+        type: String,
+        enum: ['SHOP_NO_RESPONSE', 'NO_SHIPPER', 'USER_CANCELLED', 'SYSTEM', null],
+        default: null
+    },
+    reminded30s: { type: Boolean, default: false },
+    reminded60s: { type: Boolean, default: false },
+    reminded180s: { type: Boolean, default: false },
     address: {
         type: String,
         required: true,
+    },
+    // Toạ độ giao hàng (để tạo Delivery khi shop chuyển Preparing)
+    customerLocation: {
+        lat: { type: Number, default: null },
+        lng: { type: Number, default: null }
     },
     payment: {
         type: mongoose.Schema.Types.ObjectId,
@@ -91,6 +107,11 @@ const orderSchema = new mongoose.Schema({
     estimatedDuration: { type: String },
     contactPhone: { type: String, required: true },    // SĐT người nhận
 }, { timestamps: true })
+
+// Indexes for SLA jobs & order management queries
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ status: 1, confirmDeadline: 1 });
+orderSchema.index({ status: 1, autoConfirmAt: 1 });
 
 const Order = mongoose.model("Order", orderSchema)
 export default Order
